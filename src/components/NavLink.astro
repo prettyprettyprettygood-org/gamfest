@@ -1,0 +1,41 @@
+---
+/**
+ * "Level select" link for the sticky section nav — short, pixel-mono labels
+ * that anchor-scroll to a page section. Active-section highlighting is an
+ * interactivity-pass concern (needs scroll tracking); this is the static,
+ * fully keyboard-operable base it'll sit on top of.
+ */
+export interface Props {
+  href: string;
+}
+
+const { href } = Astro.props;
+---
+
+<a class="nav-link" href={href}>
+  <slot />
+</a>
+
+<style>
+  .nav-link {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--color-fg-muted);
+    transition:
+      color 0.15s ease-out,
+      background-color 0.15s ease-out;
+  }
+
+  .nav-link:hover {
+    color: var(--color-green);
+    background-color: var(--color-bg-raised);
+  }
+</style>

@@ -1,0 +1,76 @@
+---
+/**
+ * Bordered content block for grouped items — lineup "achievements," gallery
+ * captions-with-context, contact/follow options. An optional pixel-mono
+ * eyebrow + heading sit above a free-form body slot.
+ */
+export interface Props {
+  eyebrow?: string;
+  title?: string;
+  /** Heading level for `title` — defaults to `h3` (cards sit under section `h2`s) */
+  headingLevel?: 'h3' | 'h4';
+}
+
+const { eyebrow, title, headingLevel = 'h3' } = Astro.props;
+const Heading = headingLevel;
+---
+
+<div class="card">
+  {
+    (eyebrow || title) && (
+      <header class="card__header">
+        {eyebrow && <p class="card__eyebrow">{eyebrow}</p>}
+        {title && <Heading class="card__title">{title}</Heading>}
+      </header>
+    )
+  }
+  <div class="card__body">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    height: 100%;
+    padding: var(--space-5);
+    background-color: var(--color-bg-raised);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+
+  .card__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .card__eyebrow {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+    color: var(--color-green-text);
+  }
+
+  .card__title {
+    margin: 0;
+    font-size: var(--text-lg);
+  }
+
+  .card__body {
+    color: var(--color-fg-muted);
+  }
+
+  .card__body :global(a) {
+    color: var(--color-link);
+  }
+
+  .card__body :global(a:hover) {
+    color: var(--color-link-hover);
+  }
+</style>

@@ -1,13 +1,132 @@
 ---
+import { Image } from 'astro:assets';
 import Layout from '../layouts/Layout.astro';
 import Section from '../components/Section.astro';
 import Button from '../components/Button.astro';
 import Badge from '../components/Badge.astro';
+import Card from '../components/Card.astro';
+import billboardPhoto from '../assets/images/gamfest-billboard.jpg';
+import bigScreenPhoto from '../assets/images/game-on-big-screen.webp';
+
+const discordUrl = 'https://discord.gg/KJw4trPeg';
+const facebookUrl = 'https://fb.me/1TyB3AQ3p7hPRuE';
+const contactEmail = 'dom@cerquetti.solutions';
+
+const lineup = [
+  {
+    title: 'Quick Save! took the stage',
+    body: "Baltimore's own jazz/funk videogame-music outfit opened the day with a live set.",
+    link: {
+      href: 'https://quicksave.bandcamp.com/',
+      label: 'Hear them on Bandcamp',
+    },
+  },
+  {
+    title: 'DJ Christian Dalton kept it spinning',
+    body: 'Linking the sets together and keeping the crowd moving between rounds on the big screen.',
+    link: {
+      href: 'https://linktr.ee/Christian.Dalton',
+      label: 'Find DJ Dalton',
+    },
+  },
+  {
+    title: 'Mars Magma ran Zelda 1 — live, with a live band',
+    body: 'A full Legend of Zelda speedrun on the billboard, scored in real time by Dom and Kevin of DK Adventures improvising along to every room and rupee.',
+  },
+  {
+    title: 'Freeplay, unlocked',
+    body: 'Anyone could grab a controller — on the consoles set up streetside, or on the billboard itself.',
+  },
+  {
+    title: 'Tabletop crews ran live demos',
+    body: 'Card and tabletop folks set up shop and showed off their games to passersby all afternoon.',
+  },
+  {
+    title: 'Live art, drawn right on the board',
+    body: 'Local artists turned the five-story screen into a canvas between sets.',
+  },
+  {
+    title: 'Nerd trivia, every hour on the hour',
+    body: 'A fresh round (and a fresh stack of prizes) every hour, all day long.',
+  },
+];
+
+const gallery = [
+  {
+    image: billboardPhoto,
+    alt: 'A five-story LED billboard displaying the Legend of Zelda 1986 title screen — sword, shield emblem, and "Push Start Button" — with the GAM[fest] "Games | Art | Music | Fest" banner and the date and web address overlaid above and below, against a clear blue sky.',
+    caption: 'The billboard, mid-loading-screen: Zelda 1, five stories tall.',
+  },
+  {
+    image: bigScreenPhoto,
+    alt: 'A crowd gathers on a Baltimore street corner, watching Super Mario Bros. run on a giant LED billboard mounted above a brick warehouse, with traffic cones and an inflatable arch set up for the festival on the street below.',
+    caption: 'The crowd gathers as Mario takes the big screen.',
+  },
+];
+
+const details = [
+  {
+    term: 'When',
+    description:
+      'Saturday, June 6, 2026 — 11am to 6pm (the weather cooperated)',
+  },
+  {
+    term: 'Where',
+    description:
+      'Station North, Baltimore, MD — outdoors at E. Lanvale St & N. Charles St, near Metro Gallery',
+  },
+  { term: 'Cost', description: 'Free, as promised' },
+  {
+    term: 'Part of',
+    description: "Baltimore's Charles Street Promenade festival",
+  },
+];
+
+const faqs = [
+  {
+    question: 'Is this a real event?',
+    answer:
+      'Yes — GAM[fest] #1 really happened, in real life. It was not an AI hallucination. We promise.',
+  },
+  {
+    question: 'How is GAM[fest] pronounced?',
+    answer: 'Like "JAM" + "fest" (the G is silent, like in "GIF"). Probably.',
+  },
+  {
+    question: 'I have additional questions.',
+    answer:
+      "That's not a question, but sure — email dom@cerquetti.solutions for more info, or to pitch an activity for the next one.",
+  },
+  {
+    question: "When's the next one?",
+    answer:
+      "TBD — we're hoping to make this an annual thing. (Technically GAM[fest] #1 wasn't the first GAMfest either: J.C.H. ran a few of these back in the day. History write-up coming soon.) Follow on Discord or Facebook and you'll hear it the second we know.",
+  },
+  {
+    question: 'How big was this going to be?',
+    answer:
+      'Turned out about as expected: a pretty chill crowd wandering through from the larger festival, plenty of chances for people to get a turn on the big screen. An unholy combo of "low-key" and "giant billboard" — and it ruled.',
+  },
+  {
+    question: "Where's the after-party?",
+    answer:
+      "All the cool kids know you sprint a few blocks downtown for the 8pm showing of Baltimore Rock Opera Society's newest rock opera: American Vamp.",
+  },
+  {
+    question:
+      'Why doesn’t your promo material sling any catchy millennial gamer slang like "LEVEL UP" and "GET AN EXTRA LIFE"?',
+    answer: 'Some idiot left Dom in charge of making the website.',
+  },
+  {
+    question: 'I have to go / my mom has to use the phone now.',
+    answer: 'OK, bye.',
+  },
+];
 ---
 
 <Layout
   title="GAM[fest] — Games | Art | Music | Fest"
-  description="GAM[fest] is a Baltimore festival celebrating games, art, and music — built around playing classic videogames live on a giant LED billboard."
+  description="GAM[fest] is a Baltimore festival celebrating games, art, and music — recapping GAM[fest] #1 (a giant LED billboard running classic videogames) and pointing the way to the next one, TBD."
 >
   <main id="main">
     <header class="hero">
@@ -24,29 +143,176 @@ import Badge from '../components/Badge.astro';
         <Badge variant="magenta">TBD 2027</Badge>
       </div>
       <div class="hero__actions">
-        <Button href="https://discord.gg/KJw4trPeg" variant="primary">
-          Follow on Discord
-        </Button>
-        <Button href="https://fb.me/1TyB3AQ3p7hPRuE" variant="secondary">
-          Follow on Facebook
-        </Button>
+        <Button href={discordUrl} variant="primary">Follow on Discord</Button>
+        <Button href={facebookUrl} variant="secondary"
+          >Follow on Facebook</Button
+        >
       </div>
     </header>
 
     <Section id="recap" eyebrow="Level 01 // Recap" title="How it went">
       <p class="lede">
         Somebody gave the nerds a video cable hooked up to a giant LED
-        billboard. This is going to get nuts — and it did, in the best way.
+        billboard. This was going to get nuts — and it did, in the best way.
       </p>
       <p>
         GAM[fest] #1 took over a corner of Baltimore's Charles Street Promenade
         with free-play on a five-story screen, live music following along to a
-        Zelda 1 speedrun, tabletop demos, and an hourly stream of nerd trivia. <a
-          href="#gallery">See the gallery</a
-        > for the highlights.
+        Zelda 1 speedrun, tabletop demos, live art on the board, and an hourly
+        stream of nerd trivia. Folks wandered in from the bigger festival next
+        door, grabbed a controller, and got a turn on the biggest screen they'll
+        probably ever play on. <a href="#gallery">See the gallery</a> for the highlights,
+        or <a href="#lineup">check the lineup</a> for who made it happen.
       </p>
     </Section>
+
+    <Section
+      id="lineup"
+      eyebrow="Level 02 // Lineup"
+      title="Achievements unlocked"
+    >
+      <p class="lede">
+        A run-down of what went down on (and around) the big screen — presented,
+        naturally, as a credits roll.
+      </p>
+      <ul class="achievements">
+        {
+          lineup.map((entry) => (
+            <li>
+              <Card eyebrow="Achievement unlocked" title={entry.title}>
+                <p>{entry.body}</p>
+                {entry.link && (
+                  <p>
+                    <a href={entry.link.href}>{entry.link.label}</a>
+                  </p>
+                )}
+              </Card>
+            </li>
+          ))
+        }
+      </ul>
+    </Section>
+
+    <Section
+      id="gallery"
+      eyebrow="Level 03 // Gallery"
+      title="From the big screen"
+    >
+      <p class="lede">
+        A couple of shots from the day — more from the GAM[fest] Facebook page
+        coming soon. (A proper zoom/lightbox view is on the way; for now, here's
+        the full picture.)
+      </p>
+      <ul class="gallery">
+        {
+          gallery.map((item) => (
+            <li>
+              <figure class="gallery__item">
+                <Image src={item.image} alt={item.alt} class="gallery__image" />
+                <figcaption class="gallery__caption">{item.caption}</figcaption>
+              </figure>
+            </li>
+          ))
+        }
+      </ul>
+    </Section>
+
+    <Section
+      id="details"
+      eyebrow="Level 04 // Info"
+      title="The details (for next time)"
+    >
+      <p class="lede">
+        Here's how GAM[fest] #1 went down — good context for whenever #2 lands.
+      </p>
+      <dl class="details-list">
+        {
+          details.map((row) => (
+            <div class="details-list__row">
+              <dt class="details-list__term">{row.term}</dt>
+              <dd class="details-list__description">{row.description}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </Section>
+
+    <Section
+      id="faq"
+      eyebrow="Level 05 // FAQ"
+      title="“Frequently” asked questions"
+    >
+      <div class="faq-list">
+        {
+          faqs.map((faq) => (
+            <details class="faq-item">
+              <summary class="faq-item__question">{faq.question}</summary>
+              <p class="faq-item__answer">{faq.answer}</p>
+            </details>
+          ))
+        }
+      </div>
+    </Section>
+
+    <Section
+      id="contact"
+      eyebrow="Continue?"
+      title="Follow for the announcement"
+    >
+      <p class="lede">
+        GAM[fest] #2 is TBD — but we'll shout about it the moment it's locked
+        in. Insert coin (or just hit follow) so you hear it first:
+      </p>
+      <ul class="contact-list">
+        <li>
+          <Card eyebrow="Discord" title="Join the server">
+            <p>Where the planning — and the trash talk — happens.</p>
+            <Button href={discordUrl} variant="primary">Join on Discord</Button>
+          </Card>
+        </li>
+        <li>
+          <Card eyebrow="Facebook" title="Follow the page">
+            <p>Event posts, photos, and announcements land here first.</p>
+            <Button href={facebookUrl} variant="secondary"
+              >Follow on Facebook</Button
+            >
+          </Card>
+        </li>
+        <li>
+          <Card eyebrow="Email" title="Get in touch directly">
+            <p>
+              Questions, ideas, or want to pitch an activity for next time?
+              Reach Dom directly.
+            </p>
+            <Button href={`mailto:${contactEmail}`} variant="ghost">
+              {contactEmail}
+            </Button>
+          </Card>
+        </li>
+        <li>
+          <Card eyebrow="Web" title="gamfest.org">
+            <p>This site — bookmark it, the TBD date will land here first.</p>
+            <Button href="https://gamfest.org/" variant="ghost">
+              Visit gamfest.org
+            </Button>
+          </Card>
+        </li>
+      </ul>
+    </Section>
   </main>
+
+  <footer class="site-footer">
+    <div class="site-footer__inner">
+      <p>
+        &copy; 2026 GAM[fest]&trade; — &ldquo;This is a real event&rdquo;&trade;
+      </p>
+      <p>
+        <a href="#main">Back to top</a> &middot; <a
+          href={`mailto:${contactEmail}`}>{contactEmail}</a
+        >
+      </p>
+    </div>
+  </footer>
 </Layout>
 
 <style>
@@ -105,9 +371,211 @@ import Badge from '../components/Badge.astro';
     color: var(--color-fg);
   }
 
+  /* -------------------------------------------------------------------
+   * Lineup — "achievements unlocked" credits roll
+   * ----------------------------------------------------------------- */
+  .achievements {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+    list-style: none;
+  }
+
+  .achievements > li {
+    display: flex;
+  }
+
+  .achievements > li > :global(.card) {
+    width: 100%;
+  }
+
+  /* -------------------------------------------------------------------
+   * Gallery — figure/figcaption grid; lightbox deferred (PRD §7.4)
+   * ----------------------------------------------------------------- */
+  .gallery {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+    list-style: none;
+  }
+
+  .gallery__item {
+    margin: 0;
+    overflow: hidden;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background-color: var(--color-bg-raised);
+  }
+
+  .gallery__image {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+
+  .gallery__caption {
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+  }
+
+  /* -------------------------------------------------------------------
+   * Details — "stat block" definition list
+   * ----------------------------------------------------------------- */
+  .details-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin: 0;
+  }
+
+  .details-list__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+    padding-block: var(--space-4);
+    border-bottom: var(--border-width) solid var(--color-border);
+  }
+
+  .details-list__row:last-child {
+    border-bottom: none;
+  }
+
+  .details-list__term {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+    color: var(--color-green-text);
+  }
+
+  .details-list__description {
+    margin: 0;
+    color: var(--color-fg);
+  }
+
+  /* -------------------------------------------------------------------
+   * FAQ — native <details>/<summary> accordion (keyboard- & SR-friendly
+   * for free; no JS required)
+   * ----------------------------------------------------------------- */
+  .faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .faq-item {
+    padding: var(--space-4) var(--space-5);
+    background-color: var(--color-bg-raised);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+
+  .faq-item__question {
+    position: relative;
+    padding-inline-end: var(--space-6);
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    font-weight: var(--weight-bold);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .faq-item__question::-webkit-details-marker {
+    display: none;
+  }
+
+  .faq-item__question::after {
+    content: '+';
+    position: absolute;
+    inset-inline-end: 0;
+    color: var(--color-green-text);
+    font-weight: var(--weight-bold);
+  }
+
+  .faq-item[open] > .faq-item__question::after {
+    content: '\2212';
+  }
+
+  .faq-item__answer {
+    margin-top: var(--space-3);
+    color: var(--color-fg-muted);
+  }
+
+  /* -------------------------------------------------------------------
+   * Contact / Follow — "continue?" prompt
+   * ----------------------------------------------------------------- */
+  .contact-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+    list-style: none;
+  }
+
+  .contact-list > li {
+    display: flex;
+  }
+
+  .contact-list > li > :global(.card) {
+    width: 100%;
+  }
+
+  /* -------------------------------------------------------------------
+   * Footer
+   * ----------------------------------------------------------------- */
+  .site-footer {
+    border-top: var(--border-width) solid var(--color-border);
+  }
+
+  .site-footer__inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: var(--content-max-width);
+    margin-inline: auto;
+    padding-block: var(--space-6);
+    padding-inline: var(--content-padding-inline);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+  }
+
+  .site-footer__inner p {
+    margin: 0;
+  }
+
   @media (min-width: 48rem) {
     .hero__wordmark {
       font-size: var(--text-4xl);
+    }
+
+    .achievements,
+    .contact-list {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .gallery {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .details-list__row {
+      grid-template-columns: 12rem 1fr;
+      align-items: baseline;
+    }
+
+    .site-footer__inner {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .achievements {
+      grid-template-columns: repeat(3, 1fr);
     }
   }
 </style>
