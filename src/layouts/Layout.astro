@@ -6,7 +6,7 @@ import '@fontsource/atkinson-hyperlegible/400.css';
 import '@fontsource/atkinson-hyperlegible/700.css';
 import '@fontsource/press-start-2p/400.css';
 import '../styles/global.css';
-import NavLink from '../components/NavLink.astro';
+import LevelSelectNav from '../components/motion/LevelSelectNav';
 
 export interface Props {
   title: string;
@@ -42,15 +42,7 @@ const levels = [
           GAM<span class="site-header__brand-accent">[fest]</span>
         </a>
         <nav class="level-select" aria-label="Section">
-          <ul class="level-select__list">
-            {
-              levels.map((level) => (
-                <li>
-                  <NavLink href={level.href}>{level.label}</NavLink>
-                </li>
-              ))
-            }
-          </ul>
+          <LevelSelectNav levels={levels} client:visible />
         </nav>
       </div>
     </header>
@@ -100,7 +92,9 @@ const levels = [
     padding-inline: 0.15em;
   }
 
-  .level-select__list {
+  /* :global — this list is rendered by the LevelSelectNav React island, so
+     Astro's scoped-style attribute never lands on it */
+  :global(.level-select__list) {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-1);

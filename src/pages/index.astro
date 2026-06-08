@@ -5,6 +5,8 @@ import Section from '../components/Section.astro';
 import Button from '../components/Button.astro';
 import Badge from '../components/Badge.astro';
 import Card from '../components/Card.astro';
+import Reveal from '../components/motion/Reveal';
+import HeroCanvas from '../components/motion/HeroCanvas';
 import billboardPhoto from '../assets/images/gamfest-billboard.jpg';
 import bigScreenPhoto from '../assets/images/game-on-big-screen.webp';
 
@@ -148,22 +150,27 @@ const faqs = [
           >Follow on Facebook</Button
         >
       </div>
+      <HeroCanvas client:visible />
     </header>
 
     <Section id="recap" eyebrow="Level 01 // Recap" title="How it went">
-      <p class="lede">
-        Somebody gave the nerds a video cable hooked up to a giant LED
-        billboard. This was going to get nuts — and it did, in the best way.
-      </p>
-      <p>
-        GAM[fest] #1 took over a corner of Baltimore's Charles Street Promenade
-        with free-play on a five-story screen, live music following along to a
-        Zelda 1 speedrun, tabletop demos, live art on the board, and an hourly
-        stream of nerd trivia. Folks wandered in from the bigger festival next
-        door, grabbed a controller, and got a turn on the biggest screen they'll
-        probably ever play on. <a href="#gallery">See the gallery</a> for the highlights,
-        or <a href="#lineup">check the lineup</a> for who made it happen.
-      </p>
+      <Reveal client:visible>
+        <p class="lede">
+          Somebody gave the nerds a video cable hooked up to a giant LED
+          billboard. This was going to get nuts — and it did, in the best way.
+        </p>
+        <p>
+          GAM[fest] #1 took over a corner of Baltimore's Charles Street
+          Promenade with free-play on a five-story screen, live music following
+          along to a Zelda 1 speedrun, tabletop demos, live art on the board,
+          and an hourly stream of nerd trivia. Folks wandered in from the bigger
+          festival next door, grabbed a controller, and got a turn on the
+          biggest screen they'll probably ever play on. <a href="#gallery"
+            >See the gallery</a
+          > for the highlights, or <a href="#lineup">check the lineup</a> for who
+          made it happen.
+        </p>
+      </Reveal>
     </Section>
 
     <Section
@@ -171,26 +178,30 @@ const faqs = [
       eyebrow="Level 02 // Lineup"
       title="Achievements unlocked"
     >
-      <p class="lede">
-        A run-down of what went down on (and around) the big screen — presented,
-        naturally, as a credits roll.
-      </p>
-      <ul class="achievements">
-        {
-          lineup.map((entry) => (
-            <li>
-              <Card eyebrow="Achievement unlocked" title={entry.title}>
-                <p>{entry.body}</p>
-                {entry.link && (
-                  <p>
-                    <a href={entry.link.href}>{entry.link.label}</a>
-                  </p>
-                )}
-              </Card>
-            </li>
-          ))
-        }
-      </ul>
+      <Reveal client:visible>
+        <p class="lede">
+          A run-down of what went down on (and around) the big screen —
+          presented, naturally, as a credits roll.
+        </p>
+      </Reveal>
+      <Reveal client:visible delay={0.12}>
+        <ul class="achievements">
+          {
+            lineup.map((entry) => (
+              <li>
+                <Card eyebrow="Achievement unlocked" title={entry.title}>
+                  <p>{entry.body}</p>
+                  {entry.link && (
+                    <p>
+                      <a href={entry.link.href}>{entry.link.label}</a>
+                    </p>
+                  )}
+                </Card>
+              </li>
+            ))
+          }
+        </ul>
+      </Reveal>
     </Section>
 
     <Section
@@ -198,23 +209,33 @@ const faqs = [
       eyebrow="Level 03 // Gallery"
       title="From the big screen"
     >
-      <p class="lede">
-        A couple of shots from the day — more from the GAM[fest] Facebook page
-        coming soon. (A proper zoom/lightbox view is on the way; for now, here's
-        the full picture.)
-      </p>
-      <ul class="gallery">
-        {
-          gallery.map((item) => (
-            <li>
-              <figure class="gallery__item">
-                <Image src={item.image} alt={item.alt} class="gallery__image" />
-                <figcaption class="gallery__caption">{item.caption}</figcaption>
-              </figure>
-            </li>
-          ))
-        }
-      </ul>
+      <Reveal client:visible>
+        <p class="lede">
+          A couple of shots from the day — more from the GAM[fest] Facebook page
+          coming soon. (A proper zoom/lightbox view is on the way; for now,
+          here's the full picture.)
+        </p>
+      </Reveal>
+      <Reveal client:visible delay={0.12}>
+        <ul class="gallery">
+          {
+            gallery.map((item) => (
+              <li>
+                <figure class="gallery__item">
+                  <Image
+                    src={item.image}
+                    alt={item.alt}
+                    class="gallery__image"
+                  />
+                  <figcaption class="gallery__caption">
+                    {item.caption}
+                  </figcaption>
+                </figure>
+              </li>
+            ))
+          }
+        </ul>
+      </Reveal>
     </Section>
 
     <Section
@@ -222,19 +243,24 @@ const faqs = [
       eyebrow="Level 04 // Info"
       title="The details (for next time)"
     >
-      <p class="lede">
-        Here's how GAM[fest] #1 went down — good context for whenever #2 lands.
-      </p>
-      <dl class="details-list">
-        {
-          details.map((row) => (
-            <div class="details-list__row">
-              <dt class="details-list__term">{row.term}</dt>
-              <dd class="details-list__description">{row.description}</dd>
-            </div>
-          ))
-        }
-      </dl>
+      <Reveal client:visible>
+        <p class="lede">
+          Here's how GAM[fest] #1 went down — good context for whenever #2
+          lands.
+        </p>
+      </Reveal>
+      <Reveal client:visible delay={0.12}>
+        <dl class="details-list">
+          {
+            details.map((row) => (
+              <div class="details-list__row">
+                <dt class="details-list__term">{row.term}</dt>
+                <dd class="details-list__description">{row.description}</dd>
+              </div>
+            ))
+          }
+        </dl>
+      </Reveal>
     </Section>
 
     <Section
@@ -242,16 +268,18 @@ const faqs = [
       eyebrow="Level 05 // FAQ"
       title="“Frequently” asked questions"
     >
-      <div class="faq-list">
-        {
-          faqs.map((faq) => (
-            <details class="faq-item">
-              <summary class="faq-item__question">{faq.question}</summary>
-              <p class="faq-item__answer">{faq.answer}</p>
-            </details>
-          ))
-        }
-      </div>
+      <Reveal client:visible>
+        <div class="faq-list">
+          {
+            faqs.map((faq) => (
+              <details class="faq-item">
+                <summary class="faq-item__question">{faq.question}</summary>
+                <p class="faq-item__answer">{faq.answer}</p>
+              </details>
+            ))
+          }
+        </div>
+      </Reveal>
     </Section>
 
     <Section
@@ -259,45 +287,51 @@ const faqs = [
       eyebrow="Continue?"
       title="Follow for the announcement"
     >
-      <p class="lede">
-        GAM[fest] #2 is TBD — but we'll shout about it the moment it's locked
-        in. Insert coin (or just hit follow) so you hear it first:
-      </p>
-      <ul class="contact-list">
-        <li>
-          <Card eyebrow="Discord" title="Join the server">
-            <p>Where the planning — and the trash talk — happens.</p>
-            <Button href={discordUrl} variant="primary">Join on Discord</Button>
-          </Card>
-        </li>
-        <li>
-          <Card eyebrow="Facebook" title="Follow the page">
-            <p>Event posts, photos, and announcements land here first.</p>
-            <Button href={facebookUrl} variant="secondary"
-              >Follow on Facebook</Button
-            >
-          </Card>
-        </li>
-        <li>
-          <Card eyebrow="Email" title="Get in touch directly">
-            <p>
-              Questions, ideas, or want to pitch an activity for next time?
-              Reach Dom directly.
-            </p>
-            <Button href={`mailto:${contactEmail}`} variant="ghost">
-              {contactEmail}
-            </Button>
-          </Card>
-        </li>
-        <li>
-          <Card eyebrow="Web" title="gamfest.org">
-            <p>This site — bookmark it, the TBD date will land here first.</p>
-            <Button href="https://gamfest.org/" variant="ghost">
-              Visit gamfest.org
-            </Button>
-          </Card>
-        </li>
-      </ul>
+      <Reveal client:visible>
+        <p class="lede">
+          GAM[fest] #2 is TBD — but we'll shout about it the moment it's locked
+          in. Insert coin (or just hit follow) so you hear it first:
+        </p>
+      </Reveal>
+      <Reveal client:visible delay={0.12}>
+        <ul class="contact-list">
+          <li>
+            <Card eyebrow="Discord" title="Join the server">
+              <p>Where the planning — and the trash talk — happens.</p>
+              <Button href={discordUrl} variant="primary"
+                >Join on Discord</Button
+              >
+            </Card>
+          </li>
+          <li>
+            <Card eyebrow="Facebook" title="Follow the page">
+              <p>Event posts, photos, and announcements land here first.</p>
+              <Button href={facebookUrl} variant="secondary"
+                >Follow on Facebook</Button
+              >
+            </Card>
+          </li>
+          <li>
+            <Card eyebrow="Email" title="Get in touch directly">
+              <p>
+                Questions, ideas, or want to pitch an activity for next time?
+                Reach Dom directly.
+              </p>
+              <Button href={`mailto:${contactEmail}`} variant="ghost">
+                {contactEmail}
+              </Button>
+            </Card>
+          </li>
+          <li>
+            <Card eyebrow="Web" title="gamfest.org">
+              <p>This site — bookmark it, the TBD date will land here first.</p>
+              <Button href="https://gamfest.org/" variant="ghost">
+                Visit gamfest.org
+              </Button>
+            </Card>
+          </li>
+        </ul>
+      </Reveal>
     </Section>
   </main>
 
@@ -364,6 +398,18 @@ const faqs = [
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-3);
+  }
+
+  /* React island (client:visible) — :global because Astro's scoped-style
+     attribute can't reach markup rendered outside this file */
+  :global(.hero-canvas) {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 7;
+    margin-top: var(--space-2);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background-color: var(--color-bg-raised);
   }
 
   .lede {

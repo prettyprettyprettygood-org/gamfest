@@ -14,6 +14,9 @@
 html {
   color-scheme: dark;
   -webkit-text-size-adjust: 100%;
+  /* Anchored "level select" nav smooth-scrolls to sections (PRD §6) — the
+     reduced-motion override below forces this back to `auto` */
+  scroll-behavior: smooth;
 }
 
 body {
@@ -125,6 +128,44 @@ button {
 
 .skip-link:focus-visible {
   transform: translateY(0);
+}
+
+/* ---------------------------------------------------------------------
+ * Level-select nav links — global (not scoped) so both the static markup
+ * and the LevelSelectNav island's client-rendered output share one set of
+ * rules, including the scroll-tracked active state (PRD §6/§9/§12)
+ * ------------------------------------------------------------------- */
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--color-fg-muted);
+  transition:
+    color 0.15s ease-out,
+    background-color 0.15s ease-out,
+    transform 0.1s ease-out;
+}
+
+.nav-link:hover {
+  color: var(--color-green);
+  background-color: var(--color-bg-raised);
+}
+
+.nav-link:active {
+  transform: scale(0.95);
+}
+
+.nav-link[aria-current='true'] {
+  color: var(--color-green);
+  background-color: var(--color-bg-raised);
+  box-shadow: var(--glow-green-soft);
 }
 
 /* ---------------------------------------------------------------------

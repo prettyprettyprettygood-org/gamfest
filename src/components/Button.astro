@@ -1,8 +1,11 @@
 ---
 /**
  * Retro-arcade "menu select" button. Renders an `<a>` when `href` is given,
- * otherwise a `<button>`. Static hover/focus states only here — Framer
- * Motion press/select micro-interactions land in the motion pass (PRD §9).
+ * otherwise a `<button>`. Hover "lifts" like a highlighted menu item, active
+ * "presses" it down — plain CSS transforms tied to the same
+ * `prefers-reduced-motion` media query as the rest of the site (global.css),
+ * so it degrades the instant the OS preference is set, without needing a
+ * client-side island just to swap a transform (PRD §9 micro-interactions).
  */
 export interface Props {
   href?: string;
@@ -51,7 +54,17 @@ const className = `button button--${variant}`;
     transition:
       color 0.15s ease-out,
       background-color 0.15s ease-out,
-      box-shadow 0.15s ease-out;
+      box-shadow 0.15s ease-out,
+      transform 0.12s ease-out;
+  }
+
+  .button:hover {
+    transform: translateY(-0.125rem);
+  }
+
+  .button:active {
+    transform: translateY(0.0625rem) scale(0.97);
+    transition-duration: 0.05s;
   }
 
   .button--primary {
