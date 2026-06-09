@@ -43,8 +43,8 @@
    * Typography
    * ------------------------------------------------------------------- */
 
-  /* Display serif — the "GAM[fest]" wordmark and big headlines only */
-  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  /* Display — CRT terminal pixel face for wordmark and all section headings */
+  --font-display: 'VT323', var(--font-pixel), var(--font-mono);
 
   /* Body copy — chosen for legibility (Atkinson Hyperlegible is designed
      for low-vision readers, a nice fit for the a11y-first brief) */

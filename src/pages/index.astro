@@ -1,40 +1,143 @@
 ---
-import { Image } from 'astro:assets';
+import { Image, getImage } from 'astro:assets';
 import Layout from '../layouts/Layout.astro';
 import Section from '../components/Section.astro';
 import Button from '../components/Button.astro';
 import Badge from '../components/Badge.astro';
 import Card from '../components/Card.astro';
+import Icon from '../components/Icon.astro';
 import Reveal from '../components/motion/Reveal';
 import HeroCanvas from '../components/motion/HeroCanvas';
+import GalleryModal from '../components/islands/GalleryModal';
+import DialUpFaq from '../components/islands/DialUpFaq';
+import LevelUpFaq from '../components/islands/LevelUpFaq';
+import VideoPlayer from '../components/islands/VideoPlayer';
+import dialUpSrc from '../assets/audio/dial-up_soundmp3.flac?url';
+import coinSrc from '../assets/audio/pickupCoin.wav?url';
 import billboardPhoto from '../assets/images/gamfest-billboard.jpg';
 import bigScreenPhoto from '../assets/images/game-on-big-screen.webp';
+import yoshiBillboardPhoto from '../assets/images/yoshi-billboard.webp';
+import djBoardVideo from '../assets/video/dj-board.mp4';
+import quickSavePhoto from '../assets/images/quicksave.png';
+import quickSaveBandPhoto from '../assets/images/quicksave-band.png';
+import marsMagmaPhoto from '../assets/images/mars-magma.png';
+import dkAdventuresPhoto from '../assets/images/dk-adventures.jpg';
+import christianDaltonPhoto from '../assets/images/christian-dalton-dj.png';
+import christianDaltonPhoto2 from '../assets/images/christian-dalton-dj-1.png';
+import gamFestSignPhoto from '../assets/images/gam-fest-sign.jpg';
+import marsLivePhoto from '../assets/images/mars-live.jpg';
+import marsRunPhoto from '../assets/images/mars-run.jpg';
+import brosPhoto from '../assets/images/bros.png';
+import spongebobPhoto from '../assets/images/spongebob.png';
+import thisBigCatPhoto from '../assets/images/this-big-cat.png';
+import jamPhoto from '../assets/images/jam.png';
+import vestPhoto from '../assets/images/vest.png';
+import ffvPhoto from '../assets/images/final-fantasy-v.png';
+import silentHillFPhoto from '../assets/images/silent-hill-f.png';
+import isThisRealPhoto from '../assets/images/is-this-real.png';
 
 const discordUrl = 'https://discord.gg/KJw4trPeg';
 const facebookUrl = 'https://fb.me/1TyB3AQ3p7hPRuE';
 const contactEmail = 'dom@cerquetti.solutions';
+const formspreeUrl = 'https://formspree.io/f/xvznalwp';
+const charlesStreetPromenadeUrl = 'https://charlesstreetpromenade.com/';
+const mapEmbedUrl =
+  'https://www.google.com/maps?q=E.+Lanvale+St+%26+N.+Charles+St,+Baltimore,+MD&output=embed';
+const mapUrl =
+  'https://www.google.com/maps/search/?api=1&query=E.+Lanvale+St+%26+N.+Charles+St,+Baltimore,+MD';
 
-const lineup = [
+/** The day's three headlining acts — given the bigger "act card" treatment */
+const featuredActs = [
   {
-    title: 'Quick Save! took the stage',
-    body: "Baltimore's own jazz/funk videogame-music outfit opened the day with a live set.",
-    link: {
-      href: 'https://quicksave.bandcamp.com/',
-      label: 'Hear them on Bandcamp',
+    name: 'Quick Save!',
+    role: 'live in front of the billboard',
+    image: {
+      src: quickSavePhoto,
+      alt: 'Stylized cartoon-avatar lineup graphic for Quick Save, showing the six band members as character portraits against a dark background.',
     },
-  },
-  {
-    title: 'DJ Christian Dalton kept it spinning',
-    body: 'Linking the sets together and keeping the crowd moving between rounds on the big screen.',
-    link: {
-      href: 'https://linktr.ee/Christian.Dalton',
-      label: 'Find DJ Dalton',
+    secondaryImage: {
+      src: quickSaveBandPhoto,
+      alt: 'Quick Save performing live outdoors, members playing guitar and singing on a stage against a city skyline backdrop.',
     },
+    bio: 'Taking a break from the studio to play their first summer show, Quick Save brought their jazz/rock/meme fusion to the GAM[fest] stage. They played favorites and new tunes from their upcoming studio debut.',
+    socials: [
+      {
+        name: 'instagram' as const,
+        href: 'https://www.instagram.com/quicksavebaltimore/',
+        label: 'Quick Save on Instagram',
+      },
+      {
+        name: 'facebook' as const,
+        href: 'http://facebook.com/quicksaveband/',
+        label: 'Quick Save on Facebook',
+      },
+      {
+        name: 'youtube' as const,
+        href: 'https://www.youtube.com/QuickSaveBand',
+        label: 'Quick Save on YouTube',
+      },
+      {
+        name: 'bandcamp' as const,
+        href: 'https://quicksave.bandcamp.com/',
+        label: 'Quick Save on Bandcamp',
+      },
+    ],
   },
   {
-    title: 'Mars Magma ran Zelda 1 — live, with a live band',
-    body: 'A full Legend of Zelda speedrun on the billboard, scored in real time by Dom and Kevin of DK Adventures improvising along to every room and rupee.',
+    name: 'DJ Christian Dalton',
+    role: 'Linking the sets together',
+    image: {
+      src: christianDaltonPhoto,
+      alt: 'Christian Dalton DJing at a table with a laptop in front of a screen showing retro game graphics.',
+    },
+    secondaryImage: {
+      src: christianDaltonPhoto2,
+      alt: 'Christian Dalton at the DJ booth from a wider angle, with a lit-up stage setup behind him.',
+    },
+    bio: "A Maryland-native DJ/producer bringing dance music and excellent vibes — a particular fan of funky basslines, driving grooves, and entrancing leads. His goal is simple: take you on a journey you didn't know you needed to hear.",
+    socials: [
+      {
+        name: 'instagram' as const,
+        href: 'https://www.instagram.com/christiandalton.music/',
+        label: 'Christian Dalton on Instagram',
+      },
+      {
+        name: 'link' as const,
+        href: 'https://linktr.ee/Christian.Dalton',
+        label: 'Christian Dalton on Linktree',
+      },
+    ],
   },
+  {
+    name: 'Mars Magma × DK Adventures',
+    role: 'Live Zelda speedrun',
+    image: {
+      src: marsMagmaPhoto,
+      alt: 'Mars Magma performing live in a bright orange wig and headlamp behind a bank of game consoles and a monitor, with the "Hipscore: The Happy Hour for Gamers" logo overlaid.',
+    },
+    secondaryImage: {
+      src: dkAdventuresPhoto,
+      alt: 'Dom and Kevin of DK Adventures performing on an outdoor wooden stage surrounded by trees — one on drums, one on keyboard and vocals — with a "DK Adventures" text overlay.',
+    },
+    bio: 'A full Legend of Zelda speedrun on the billboard, scored in real time: Mars Magma ran the game while Dom and Kevin of DK Adventures improvised a live soundtrack to every room and rupee.',
+    socials: [
+      {
+        name: 'instagram' as const,
+        href: 'https://www.instagram.com/marsapalooza_arcade/',
+        label: 'Mars Magma on Instagram',
+      },
+      {
+        name: 'facebook' as const,
+        href: 'https://www.facebook.com/DKAdventuresBand/',
+        label: 'DK Adventures on Facebook',
+      },
+    ],
+  },
+];
+
+/** The rest of the day's "also unlocked" activities — a lighter-weight list,
+ * not cards, so four items don't leave an awkward lone card in a 3-up grid */
+const lineupExtras = [
   {
     title: 'Freeplay, unlocked',
     body: 'Anyone could grab a controller — on the consoles set up streetside, or on the billboard itself.',
@@ -53,16 +156,61 @@ const lineup = [
   },
 ];
 
-const gallery = [
+const galleryItems = [
   {
-    image: billboardPhoto,
+    thumbSrc: (
+      await getImage({ src: billboardPhoto, width: 600, format: 'webp' })
+    ).src,
+    fullSrc: (await getImage({ src: billboardPhoto, width: 1400 })).src,
     alt: 'A five-story LED billboard displaying the Legend of Zelda 1986 title screen — sword, shield emblem, and "Push Start Button" — with the GAM[fest] "Games | Art | Music | Fest" banner and the date and web address overlaid above and below, against a clear blue sky.',
-    caption: 'The billboard, mid-loading-screen: Zelda 1, five stories tall.',
+    caption: 'The billboard: The Legend of Zelda, five stories tall.',
+    thumbPosition: 'center',
   },
   {
-    image: bigScreenPhoto,
+    thumbSrc: (
+      await getImage({ src: bigScreenPhoto, width: 600, format: 'webp' })
+    ).src,
+    fullSrc: (await getImage({ src: bigScreenPhoto, width: 1200 })).src,
     alt: 'A crowd gathers on a Baltimore street corner, watching Super Mario Bros. run on a giant LED billboard mounted above a brick warehouse, with traffic cones and an inflatable arch set up for the festival on the street below.',
     caption: 'The crowd gathers as Mario takes the big screen.',
+    thumbPosition: 'top',
+  },
+  {
+    thumbSrc: (
+      await getImage({ src: yoshiBillboardPhoto, width: 600, format: 'webp' })
+    ).src,
+    fullSrc: (await getImage({ src: yoshiBillboardPhoto, width: 1200 })).src,
+    alt: "A tall view of the LED billboard mounted above a Station North brick warehouse, displaying the overworld map from Super Mario World's Yoshi's Island, with festival tents and a small crowd gathered on the street below.",
+    caption:
+      "Yoshi's Island, five stories up — and a street-level view of the whole setup.",
+    thumbPosition: 'top center',
+  },
+  {
+    thumbSrc: (
+      await getImage({ src: gamFestSignPhoto, width: 600, format: 'webp' })
+    ).src,
+    fullSrc: (await getImage({ src: gamFestSignPhoto, width: 1400 })).src,
+    alt: 'A GAM[fest] festival sign on display at the event.',
+    caption: 'The GAM[fest] sign welcoming attendees.',
+    thumbPosition: 'center',
+  },
+  {
+    thumbSrc: (
+      await getImage({ src: marsLivePhoto, width: 600, format: 'webp' })
+    ).src,
+    fullSrc: (await getImage({ src: marsLivePhoto, width: 1400 })).src,
+    alt: 'Mars performing live on stage at GAM[fest].',
+    caption: 'Mars live on stage.',
+    thumbPosition: 'center',
+  },
+  {
+    thumbSrc: (
+      await getImage({ src: marsRunPhoto, width: 600, format: 'webp' })
+    ).src,
+    fullSrc: (await getImage({ src: marsRunPhoto, width: 1400 })).src,
+    alt: 'Mars running during a performance at GAM[fest].',
+    caption: 'Mars bringing the energy.',
+    thumbPosition: 'center',
   },
 ];
 
@@ -76,50 +224,57 @@ const details = [
     term: 'Where',
     description:
       'Station North, Baltimore, MD — outdoors at E. Lanvale St & N. Charles St, near Metro Gallery',
+    link: { href: mapUrl, label: 'Open in Google Maps' },
   },
-  { term: 'Cost', description: 'Free, as promised' },
   {
-    term: 'Part of',
+    term: 'Who',
     description: "Baltimore's Charles Street Promenade festival",
+    link: {
+      href: charlesStreetPromenadeUrl,
+      label: 'charlesstreetpromenade.com',
+    },
   },
 ];
 
 const faqs = [
   {
+    id: 'real',
     question: 'Is this a real event?',
     answer:
       'Yes — GAM[fest] #1 really happened, in real life. It was not an AI hallucination. We promise.',
   },
   {
+    id: 'pronunciation',
     question: 'How is GAM[fest] pronounced?',
     answer: 'Like "JAM" + "fest" (the G is silent, like in "GIF"). Probably.',
   },
   {
-    question: 'I have additional questions.',
-    answer:
-      "That's not a question, but sure — email dom@cerquetti.solutions for more info, or to pitch an activity for the next one.",
-  },
-  {
+    id: 'next',
     question: "When's the next one?",
     answer:
       "TBD — we're hoping to make this an annual thing. (Technically GAM[fest] #1 wasn't the first GAMfest either: J.C.H. ran a few of these back in the day. History write-up coming soon.) Follow on Discord or Facebook and you'll hear it the second we know.",
   },
   {
+    id: 'size',
     question: 'How big was this going to be?',
     answer:
       'Turned out about as expected: a pretty chill crowd wandering through from the larger festival, plenty of chances for people to get a turn on the big screen. An unholy combo of "low-key" and "giant billboard" — and it ruled.',
   },
   {
+    id: 'afterparty',
     question: "Where's the after-party?",
     answer:
       "All the cool kids know you sprint a few blocks downtown for the 8pm showing of Baltimore Rock Opera Society's newest rock opera: American Vamp.",
   },
   {
+    id: 'slang',
     question:
-      'Why doesn’t your promo material sling any catchy millennial gamer slang like "LEVEL UP" and "GET AN EXTRA LIFE"?',
-    answer: 'Some idiot left Dom in charge of making the website.',
+      'Why doesn\'t your promo material sling any catchy millennial gamer slang like "LEVEL UP" and "GET AN EXTRA LIFE"?',
+    answer:
+      '"Some idiot left Dom in charge of making the website." — Alas, I have arrived. As you can see, I have sprinkled some millennial gamer slang in. ',
   },
   {
+    id: 'dialup',
     question: 'I have to go / my mom has to use the phone now.',
     answer: 'OK, bye.',
   },
@@ -131,26 +286,29 @@ const faqs = [
   description="GAM[fest] is a Baltimore festival celebrating games, art, and music — recapping GAM[fest] #1 (a giant LED billboard running classic videogames) and pointing the way to the next one, TBD."
 >
   <main id="main">
+    <div class="page-glow" aria-hidden="true"></div>
     <header class="hero">
-      <p class="hero__tagline">Games | Art | Music | Fest</p>
-      <h1 class="hero__wordmark">
-        GAM<span class="hero__wordmark-accent">[fest]</span>
-      </h1>
-      <p class="hero__pitch">
-        That happened. It ruled. <strong>NEXT GAM[fest]: TBD — 2027</strong>
-      </p>
-      <div class="hero__badges">
-        <Badge variant="green">Free</Badge>
-        <Badge variant="amber">IRL</Badge>
-        <Badge variant="magenta">TBD 2027</Badge>
+      <div class="hero__canvas-wrap" aria-hidden="true">
+        <HeroCanvas client:load />
       </div>
-      <div class="hero__actions">
-        <Button href={discordUrl} variant="primary">Follow on Discord</Button>
-        <Button href={facebookUrl} variant="secondary"
-          >Follow on Facebook</Button
-        >
+      <div class="hero__content">
+        <p class="hero__tagline">Games | Art | Music | Fest</p>
+        <h1 class="hero__wordmark">
+          GAM<span class="hero__wordmark-accent">[fest]</span>
+        </h1>
+        <p class="hero__pitch">That happened. It ruled.</p>
+        <div class="hero__badges">
+          <Badge variant="green">Free</Badge>
+          <Badge variant="amber">IRL</Badge>
+          <Badge variant="magenta">TBD 2027</Badge>
+        </div>
+        <div class="hero__actions">
+          <Button href={discordUrl} variant="primary">Follow on Discord</Button>
+          <Button href={facebookUrl} variant="secondary"
+            >Follow on Facebook</Button
+          >
+        </div>
       </div>
-      <HeroCanvas client:visible />
     </header>
 
     <Section id="recap" eyebrow="Level 01 // Recap" title="How it went">
@@ -180,28 +338,89 @@ const faqs = [
     >
       <Reveal client:visible>
         <p class="lede">
-          A run-down of what went down on (and around) the big screen —
-          presented, naturally, as a credits roll.
+          A run-down of who and what made the day — headliners first, then
+          everything else that was happening on (and around) the big screen.
         </p>
       </Reveal>
       <Reveal client:visible delay={0.12}>
-        <ul class="achievements">
+        <ul class="acts">
           {
-            lineup.map((entry) => (
+            featuredActs.map((act) => (
               <li>
-                <Card eyebrow="Achievement unlocked" title={entry.title}>
-                  <p>{entry.body}</p>
-                  {entry.link && (
-                    <p>
-                      <a href={entry.link.href}>{entry.link.label}</a>
-                    </p>
-                  )}
+                <Card headingLevel="h3">
+                  <div class="act-card__media">
+                    {act.image && (
+                      <Image
+                        src={act.image.src}
+                        alt={act.image.alt}
+                        class="act-card__image"
+                        width={480}
+                      />
+                    )}
+                    {'secondaryImage' in act && act.secondaryImage && (
+                      <Image
+                        src={act.secondaryImage.src}
+                        alt={act.secondaryImage.alt}
+                        class="act-card__image act-card__image--secondary"
+                        width={320}
+                      />
+                    )}
+                    {!act.image && (
+                      <p class="act-card__eyebrow" aria-hidden="true">
+                        Achievement unlocked
+                      </p>
+                    )}
+                  </div>
+                  <div class="act-card__body">
+                    <p class="act-card__role">{act.role}</p>
+                    <h3 class="act-card__name">{act.name}</h3>
+                    <p class="act-card__bio">{act.bio}</p>
+                    <ul class="act-card__socials">
+                      {act.socials.map((social) => (
+                        <li>
+                          <a
+                            class="icon-link"
+                            href={social.href}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <Icon name={social.name} label={social.label} />
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </Card>
               </li>
             ))
           }
         </ul>
       </Reveal>
+      <div class="lineup-extras-wrap">
+        <div class="lineup-extras-col">
+          <Reveal client:visible delay={0.18}>
+            <h3 class="lineup-extras__heading">Also unlocked that day</h3>
+          </Reveal>
+          <ul class="lineup-extras" data-stagger>
+            {
+              lineupExtras.map((entry, index) => (
+                <li class="lineup-extras__item" style={`--stagger-i: ${index}`}>
+                  <span class="lineup-extras__index" aria-hidden="true">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                  <div>
+                    <h4 class="lineup-extras__title">{entry.title}</h4>
+                    <p>{entry.body}</p>
+                  </div>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+        <Reveal client:visible delay={0.28} className="lineup-extras-video-col">
+          <VideoPlayer client:visible src={djBoardVideo} />
+        </Reveal>
+      </div>
     </Section>
 
     <Section
@@ -211,55 +430,70 @@ const faqs = [
     >
       <Reveal client:visible>
         <p class="lede">
-          A couple of shots from the day — more from the GAM[fest] Facebook page
-          coming soon. (A proper zoom/lightbox view is on the way; for now,
-          here's the full picture.)
+          A few shots from the day — click any photo to view full size. More on
+          the GAM[fest] Facebook page.
         </p>
       </Reveal>
       <Reveal client:visible delay={0.12}>
-        <ul class="gallery">
-          {
-            gallery.map((item) => (
-              <li>
-                <figure class="gallery__item">
-                  <Image
-                    src={item.image}
-                    alt={item.alt}
-                    class="gallery__image"
-                  />
-                  <figcaption class="gallery__caption">
-                    {item.caption}
-                  </figcaption>
-                </figure>
-              </li>
-            ))
-          }
-        </ul>
+        <GalleryModal client:visible items={galleryItems} />
       </Reveal>
     </Section>
 
-    <Section
-      id="details"
-      eyebrow="Level 04 // Info"
-      title="The details (for next time)"
-    >
+    <Section id="details" eyebrow="Level 04 // Info">
       <Reveal client:visible>
-        <p class="lede">
-          Here's how GAM[fest] #1 went down — good context for whenever #2
-          lands.
-        </p>
-      </Reveal>
-      <Reveal client:visible delay={0.12}>
-        <dl class="details-list">
-          {
-            details.map((row) => (
-              <div class="details-list__row">
-                <dt class="details-list__term">{row.term}</dt>
-                <dd class="details-list__description">{row.description}</dd>
-              </div>
-            ))
-          }
-        </dl>
+        <div class="details-layout">
+          <div class="details-layout__left">
+            <h2 class="details-layout__title">The details (for next time)</h2>
+            <p class="lede">
+              Here's how GAM[fest] #1 went down — good context for whenever #2
+              lands.
+            </p>
+            <dl class="details-list">
+              {
+                details.map((row) => (
+                  <div class="details-list__row">
+                    <dt class="details-list__term">{row.term}</dt>
+                    <dd class="details-list__description">
+                      {row.description}
+                      {row.link && (
+                        <>
+                          {' — '}
+                          <a
+                            href={row.link.href}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {row.link.label}
+                          </a>
+                        </>
+                      )}
+                    </dd>
+                  </div>
+                ))
+              }
+            </dl>
+          </div>
+          <div class="details-map-wrap">
+            <div class="free-burst" aria-label="Free event">
+              <span>FREE</span>
+              <span class="free-burst__bang">!</span>
+            </div>
+            <figure class="details-map">
+              <iframe
+                class="details-map__frame"
+                src={mapEmbedUrl}
+                title="Map of E. Lanvale St & N. Charles St, Station North, Baltimore, MD"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"></iframe>
+              <figcaption class="details-map__caption">
+                <Icon name="map-pin" />
+                <a href={mapUrl} target="_blank" rel="noreferrer"
+                  >Open in Google Maps</a
+                >
+              </figcaption>
+            </figure>
+          </div>
+        </div>
       </Reveal>
     </Section>
 
@@ -271,12 +505,160 @@ const faqs = [
       <Reveal client:visible>
         <div class="faq-list">
           {
-            faqs.map((faq) => (
-              <details class="faq-item">
-                <summary class="faq-item__question">{faq.question}</summary>
-                <p class="faq-item__answer">{faq.answer}</p>
-              </details>
-            ))
+            faqs.map((faq) => {
+              if (faq.id === 'dialup') {
+                return (
+                  <DialUpFaq
+                    client:visible
+                    question={faq.question}
+                    answer={faq.answer}
+                    audioSrc={dialUpSrc}
+                  />
+                );
+              }
+              if (faq.id === 'slang') {
+                return (
+                  <LevelUpFaq
+                    client:visible
+                    question={faq.question}
+                    answer={faq.answer}
+                    coinSrc={coinSrc}
+                  />
+                );
+              }
+              if (faq.id === 'real') {
+                return (
+                  <details class="faq-item">
+                    <summary class="faq-item__question">{faq.question}</summary>
+                    <div class="faq-item__body--images">
+                      <div class="faq-item__answer">
+                        <p>Yes — GAM[fest] #1 really happened, in real life.</p>
+                        <p>It was not an AI hallucination.</p>
+                        <p>We promise.</p>
+                      </div>
+                      <div class="faq-item__images">
+                        <Image
+                          src={isThisRealPhoto}
+                          alt="Proof that GAM[fest] #1 was a real event"
+                          width={280}
+                          class="faq-item__single-img"
+                        />
+                      </div>
+                    </div>
+                  </details>
+                );
+              }
+              if (faq.id === 'pronunciation') {
+                return (
+                  <details class="faq-item">
+                    <summary class="faq-item__question">{faq.question}</summary>
+                    <div class="faq-item__body--images">
+                      <p class="faq-item__answer">{faq.answer}</p>
+                      <div
+                        class="faq-rebus"
+                        role="img"
+                        aria-label="Rebus: JAM plus VEST minus V (Final Fantasy V) plus F (Silent Hill F) equals GAM[fest]"
+                      >
+                        <figure class="faq-rebus__step">
+                          <Image src={jamPhoto} alt="" width={72} />
+                        </figure>
+                        <span class="faq-rebus__op" aria-hidden="true">+</span>
+                        <figure class="faq-rebus__step">
+                          <Image
+                            src={vestPhoto}
+                            alt=""
+                            width={72}
+                          />
+                        </figure>
+                        <span class="faq-rebus__op" aria-hidden="true">-</span>
+                        <figure class="faq-rebus__step">
+                          <Image src={ffvPhoto} alt="" width={72} />
+                        </figure>
+                        <span class="faq-rebus__op" aria-hidden="true">+</span>
+                        <figure class="faq-rebus__step">
+                          <Image
+                            src={silentHillFPhoto}
+                            alt=""
+                            width={72}
+                          />
+                        </figure>
+                      </div>
+                    </div>
+                  </details>
+                );
+              }
+              if (faq.id === 'afterparty') {
+                return (
+                  <details class="faq-item">
+                    <summary class="faq-item__question">{faq.question}</summary>
+                    <div class="faq-item__body--images">
+                      <p class="faq-item__answer">
+                        All the cool kids know you sprint a few blocks downtown
+                        for the 8pm showing of{' '}
+                        <a
+                          href="https://www.baltimorerockopera.org/"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Baltimore Rock Opera Society
+                        </a>
+                        's newest rock opera: American Vamp.
+                      </p>
+                      <div class="faq-item__images">
+                        <Image
+                          src={brosPhoto}
+                          alt="Bros at the after-party"
+                          width={340}
+                          class="faq-item__single-img"
+                        />
+                      </div>
+                    </div>
+                  </details>
+                );
+              }
+              if (faq.id === 'size') {
+                return (
+                  <details class="faq-item">
+                    <summary class="faq-item__question">{faq.question}</summary>
+                    <div class="faq-item__body--images">
+                      <p class="faq-item__answer">{faq.answer}</p>
+                      <div class="faq-item__images">
+                        <Image
+                          src={thisBigCatPhoto}
+                          alt="This big (cat demonstrating size)"
+                          width={220}
+                          class="faq-item__single-img"
+                        />
+                      </div>
+                    </div>
+                  </details>
+                );
+              }
+              if (faq.id === 'next') {
+                return (
+                  <details class="faq-item">
+                    <summary class="faq-item__question">{faq.question}</summary>
+                    <div class="faq-item__body--images">
+                      <p class="faq-item__answer">{faq.answer}</p>
+                      <div class="faq-item__images">
+                        <Image
+                          src={spongebobPhoto}
+                          alt="Spongebob squarepants holding a TBD sign"
+                          width={220}
+                          class="faq-item__single-img"
+                        />
+                      </div>
+                    </div>
+                  </details>
+                );
+              }
+              return (
+                <details class="faq-item">
+                  <summary class="faq-item__question">{faq.question}</summary>
+                  <p class="faq-item__answer">{faq.answer}</p>
+                </details>
+              );
+            })
           }
         </div>
       </Reveal>
@@ -294,69 +676,159 @@ const faqs = [
         </p>
       </Reveal>
       <Reveal client:visible delay={0.12}>
-        <ul class="contact-list">
-          <li>
-            <Card eyebrow="Discord" title="Join the server">
-              <p>Where the planning — and the trash talk — happens.</p>
-              <Button href={discordUrl} variant="primary"
-                >Join on Discord</Button
-              >
-            </Card>
-          </li>
-          <li>
-            <Card eyebrow="Facebook" title="Follow the page">
-              <p>Event posts, photos, and announcements land here first.</p>
-              <Button href={facebookUrl} variant="secondary"
-                >Follow on Facebook</Button
-              >
-            </Card>
-          </li>
-          <li>
-            <Card eyebrow="Email" title="Get in touch directly">
-              <p>
-                Questions, ideas, or want to pitch an activity for next time?
-                Reach Dom directly.
-              </p>
-              <Button href={`mailto:${contactEmail}`} variant="ghost">
-                {contactEmail}
-              </Button>
-            </Card>
-          </li>
-          <li>
-            <Card eyebrow="Web" title="gamfest.org">
-              <p>This site — bookmark it, the TBD date will land here first.</p>
-              <Button href="https://gamfest.org/" variant="ghost">
-                Visit gamfest.org
-              </Button>
-            </Card>
-          </li>
-        </ul>
+        <div class="follow-card">
+          <a
+            class="follow-item"
+            href={discordUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Icon name="discord" label="Discord" />
+            <div class="follow-item__text">
+              <p class="follow-item__label">Discord</p>
+              <p class="follow-item__sub">Join the server</p>
+            </div>
+          </a>
+          <a
+            class="follow-item"
+            href={facebookUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Icon name="facebook" label="Facebook" />
+            <div class="follow-item__text">
+              <p class="follow-item__label">Facebook</p>
+              <p class="follow-item__sub">Follow the page</p>
+            </div>
+          </a>
+          <a class="follow-item" href={`mailto:${contactEmail}`}>
+            <Icon name="mail" label="Email" />
+            <div class="follow-item__text">
+              <p class="follow-item__label">{contactEmail}</p>
+              <p class="follow-item__sub">Send us a message</p>
+            </div>
+          </a>
+        </div>
+      </Reveal>
+      <Reveal client:visible delay={0.18}>
+        <form class="contact-form" action={formspreeUrl} method="POST">
+          <h3 class="contact-form__heading">
+            Got an idea, a question, or want to pitch an activity for next time?
+          </h3>
+          <input type="hidden" name="_subject" value="GAM[fest] contact form" />
+          <div class="contact-form__row">
+            <label for="contact-name">Name</label>
+            <input
+              id="contact-name"
+              name="name"
+              type="text"
+              autocomplete="name"
+              required
+            />
+          </div>
+          <div class="contact-form__row">
+            <label for="contact-email">Email</label>
+            <input
+              id="contact-email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+            />
+          </div>
+          <div class="contact-form__row">
+            <label for="contact-message">Message</label>
+            <textarea id="contact-message" name="message" rows="4" required
+            ></textarea>
+          </div>
+          <Button type="submit" variant="primary">Send it</Button>
+        </form>
       </Reveal>
     </Section>
   </main>
 
   <footer class="site-footer">
     <div class="site-footer__inner">
-      <p>
-        &copy; 2026 GAM[fest]&trade; — &ldquo;This is a real event&rdquo;&trade;
+      <p class="site-footer__email">
+        <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
       </p>
-      <p>
-        <a href="#main">Back to top</a> &middot; <a
-          href={`mailto:${contactEmail}`}>{contactEmail}</a
+      <p class="site-footer__copyright">
+        &copy; 2026 GAM[fest]&trade;
+        <span class="site-footer__tagline"
+          >&ldquo;This is a real event&rdquo;&trade;</span
         >
+      </p>
+      <p class="site-footer__back-to-top">
+        <a href="#main">Back to top</a>
       </p>
     </div>
   </footer>
 </Layout>
 
+<script>
+  // Stagger the "Also unlocked" list items into view
+  const staggerLists = document.querySelectorAll<HTMLElement>('[data-stagger]');
+  if (staggerLists.length) {
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add('lineup-extras--visible');
+            obs.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.15 },
+    );
+    staggerLists.forEach((el) => obs.observe(el));
+  }
+
+  // Cursor-following spotlight — single fixed overlay across the whole page
+  document.addEventListener('mousemove', (e) => {
+    document.documentElement.style.setProperty('--cursor-x', `${e.clientX}px`);
+    document.documentElement.style.setProperty('--cursor-y', `${e.clientY}px`);
+  });
+
+  // Sync video column height to the left column so they're the same
+  const leftCol = document.querySelector<HTMLElement>('.lineup-extras-col');
+  const videoCol = document.querySelector<HTMLElement>(
+    '.lineup-extras-video-col',
+  );
+  if (leftCol && videoCol) {
+    const wide = window.matchMedia('(min-width: 48rem)');
+    const sync = () => {
+      if (wide.matches) {
+        videoCol.style.height = `${leftCol.offsetHeight}px`;
+      } else {
+        videoCol.style.height = '';
+      }
+    };
+    sync();
+    new ResizeObserver(sync).observe(leftCol);
+    wide.addEventListener('change', sync);
+  }
+</script>
+
 <style>
+  /* -----------------------------------------------------------------------
+   * Hero — mobile: stacked text-only layout; canvas hidden until ≥ 48rem
+   * --------------------------------------------------------------------- */
   .hero {
+    position: relative;
+    max-width: var(--content-max-width);
+    margin-inline: auto;
+    overflow: hidden;
+  }
+
+  .hero__canvas-wrap {
+    display: none;
+  }
+
+  .hero__content {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-4);
-    max-width: var(--content-max-width);
-    margin-inline: auto;
     padding-block: var(--space-9);
     padding-inline: var(--content-padding-inline);
   }
@@ -367,12 +839,14 @@ const faqs = [
     font-weight: var(--weight-bold);
     letter-spacing: var(--tracking-widest);
     text-transform: uppercase;
-    color: var(--color-green-text);
+    color: var(--hero-tagline-color, var(--color-green-text));
   }
 
   .hero__wordmark {
     font-size: var(--text-3xl);
     line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-wide);
+    color: var(--hero-fg, var(--color-fg));
   }
 
   .hero__wordmark-accent {
@@ -385,12 +859,7 @@ const faqs = [
   .hero__pitch {
     max-width: 40ch;
     font-size: var(--text-md);
-    color: var(--color-fg-muted);
-  }
-
-  .hero__pitch strong {
-    color: var(--color-fg);
-    font-weight: var(--weight-bold);
+    color: var(--hero-fg-muted, var(--color-fg-muted));
   }
 
   .hero__badges,
@@ -400,52 +869,611 @@ const faqs = [
     gap: var(--space-3);
   }
 
-  /* React island (client:visible) — :global because Astro's scoped-style
-     attribute can't reach markup rendered outside this file */
+  .hero__actions {
+    flex-wrap: nowrap;
+  }
+
+  /* Day-mode palette — only at ≥ 48rem where the canvas sky is actually visible.
+     At mobile the hero uses the dark page bg, so night palette colors apply. */
+  @media (min-width: 48rem) {
+    :global([data-hero-time='day']) {
+      --hero-tagline-color: #0d7a32;
+      --hero-fg: #1a2030;
+      --hero-fg-muted: #384858;
+    }
+
+    /* Semi-transparent scrim so text/badges/buttons pop against the sky */
+    :global([data-hero-time='day']) .hero__content {
+      background: linear-gradient(
+        to right,
+        rgb(255 255 255 / 0.28) 0%,
+        rgb(255 255 255 / 0.1) 80%,
+        transparent
+      );
+    }
+  }
+
+  /* Canvas fills the hero container on larger screens */
   :global(.hero-canvas) {
     display: block;
     width: 100%;
-    aspect-ratio: 16 / 7;
-    margin-top: var(--space-2);
-    border: var(--border-width) solid var(--color-border);
-    border-radius: var(--radius-lg);
+    height: 100%;
     background-color: var(--color-bg-raised);
+  }
+
+  /* -----------------------------------------------------------------------
+   * Hero — desktop: canvas fills full container, text overlaid on left
+   * --------------------------------------------------------------------- */
+  @media (min-width: 48rem) {
+    .hero {
+      aspect-ratio: 2.1 / 1;
+      min-height: 340px;
+      max-height: 72vh;
+      margin-top: var(--space-2);
+      border-radius: var(--radius-lg);
+    }
+
+    .hero__canvas-wrap {
+      display: block;
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .hero__content {
+      position: absolute;
+      inset-block: 0;
+      left: 0;
+      width: 58%;
+      justify-content: flex-start;
+      padding: var(--space-7) var(--space-8);
+      z-index: 1;
+    }
+  }
+
+  .page-glow {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background: radial-gradient(
+      700px circle at var(--cursor-x, 50vw) var(--cursor-y, 50vh),
+      rgb(57 255 20 / 0.05),
+      transparent 55%
+    );
   }
 
   .lede {
     font-size: var(--text-md);
     color: var(--color-fg);
+    margin-bottom: var(--space-6);
   }
 
   /* -------------------------------------------------------------------
-   * Lineup — "achievements unlocked" credits roll
+   * Lineup — headliner "act" cards (image + bio + icon socials), styled to
+   * stand apart from the lighter-weight "also unlocked" activity list below
    * ----------------------------------------------------------------- */
-  .achievements {
+  .acts {
     display: grid;
     grid-template-columns: 1fr;
     gap: var(--space-5);
     list-style: none;
+    margin-bottom: var(--space-7);
   }
 
-  .achievements > li {
+  .acts > li {
     display: flex;
   }
 
-  .achievements > li > :global(.card) {
+  .acts > li > :global(.card) {
     width: 100%;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: var(--glow-green-soft);
+    border-color: var(--color-green);
+    transition:
+      transform 0.2s ease-out,
+      box-shadow 0.2s ease-out;
+  }
+
+  .acts > li:hover > :global(.card) {
+    transform: translateY(-6px);
+    box-shadow:
+      0 0 1.5rem rgb(57 255 20 / 55%),
+      0 12px 32px rgb(0 0 0 / 40%);
+  }
+
+  .acts > li > :global(.card) > :global(.card__body) {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: var(--space-4);
+    padding: var(--space-5);
+  }
+
+  .act-card__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: var(--space-3);
+  }
+
+  .act-card__media {
+    position: relative;
+    display: flex;
+    background-color: var(--color-bg);
+  }
+
+  .act-card__image {
+    width: 100%;
+    height: 12rem;
+    object-fit: cover;
+  }
+
+  .act-card__image--secondary {
+    width: 40%;
+    flex-shrink: 0;
+    border-inline-start: var(--border-width) solid var(--color-border);
+  }
+
+  .act-card__eyebrow {
+    margin: 0;
+    padding: var(--space-6) var(--space-5);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+    color: var(--color-green-text);
+  }
+
+  .act-card__role {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+    color: var(--color-green);
+  }
+
+  .act-card__name {
+    margin: 0;
+  }
+
+  .act-card__bio {
+    flex: 1;
+  }
+
+  .act-card__socials {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    list-style: none;
+    padding-top: var(--space-3);
+  }
+
+  .icon-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-fg-muted);
+    text-decoration: none;
+    transition:
+      color 0.15s ease-out,
+      border-color 0.15s ease-out,
+      transform 0.12s ease-out;
+  }
+
+  .icon-link:hover {
+    color: var(--color-green);
+    border-color: currentColor;
+    transform: translateY(-0.125rem);
   }
 
   /* -------------------------------------------------------------------
-   * Gallery — figure/figcaption grid; lightbox deferred (PRD §7.4)
+   * Lineup extras — "also unlocked" list; deliberately not cards, so four
+   * items don't strand a lone card in a 3-up grid (per content review)
    * ----------------------------------------------------------------- */
-  .gallery {
+  .lineup-extras-wrap {
     display: grid;
     grid-template-columns: 1fr;
-    gap: var(--space-5);
+    gap: var(--space-6);
+    align-items: start;
+  }
+
+  .lineup-extras-col {
+    min-width: 0;
+  }
+
+  :global(.lineup-extras-video-col) {
+    min-width: 0;
+  }
+
+  /* Video player sizing — capped on mobile, full-height match on wider layout */
+  :global(.lineup-extras-video-col .video-player) {
+    max-height: 14rem;
+  }
+
+  :global(.lineup-extras-video-col .video-player__video) {
+    max-height: 14rem;
+    object-fit: cover;
+  }
+
+  /* -------------------------------------------------------------------
+   * Video player island (play/pause/mute overlay)
+   * ----------------------------------------------------------------- */
+  :global(.video-player) {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    border: var(--border-width) solid var(--color-border);
+    cursor: pointer;
+    display: block;
+    outline: none;
+    transition:
+      border-color 0.2s ease-out,
+      box-shadow 0.2s ease-out;
+  }
+
+  :global(.video-player:hover) {
+    border-color: var(--color-green);
+    box-shadow: var(--glow-green-soft);
+  }
+
+  :global(.video-player:focus-visible) {
+    outline: var(--border-width) solid var(--color-focus-ring);
+    outline-offset: 0.15rem;
+  }
+
+  :global(.video-player__video) {
+    display: block;
+    width: 100%;
+  }
+
+  :global(.video-player__overlay) {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgb(0 0 0 / 0.6);
+    color: var(--color-green);
+    transition: opacity 0.2s ease-out;
+  }
+
+  :global(.video-player__overlay--playing) {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  :global(.video-player__play-icon) {
+    width: 2.75rem;
+    height: 2.75rem;
+    filter: drop-shadow(0 0 0.4rem var(--color-green));
+  }
+
+  :global(.video-player__controls) {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: linear-gradient(transparent, rgb(0 0 0 / 0.8));
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-out;
+  }
+
+  :global(.video-player:hover .video-player__controls) {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  :global(.video-player__btn) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: var(--border-width) solid var(--color-green);
+    border-radius: var(--radius-md);
+    background: rgb(0 0 0 / 0.6);
+    color: var(--color-green);
+    cursor: pointer;
+    transition:
+      background 0.15s ease-out,
+      box-shadow 0.15s ease-out;
+  }
+
+  :global(.video-player__btn:hover) {
+    background: rgb(57 255 20 / 0.2);
+    box-shadow: var(--glow-green-soft);
+  }
+
+  :global(.video-player__btn svg) {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .lineup-extras__heading {
+    font-family: var(--font-mono);
+    font-size: var(--text-base);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--color-fg-muted);
+    margin-bottom: var(--space-4);
+  }
+
+  .lineup-extras {
+    display: flex;
+    flex-direction: column;
     list-style: none;
   }
 
-  .gallery__item {
+  @keyframes extras-slide-in {
+    from {
+      opacity: 0;
+      transform: translateX(-16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .lineup-extras__item {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-4);
+    padding-block: var(--space-4);
+    padding-left: var(--space-3);
+    border-bottom: var(--border-width) solid var(--color-border);
+    border-left: 2px solid transparent;
+    opacity: 0;
+    transform: translateX(-16px);
+    transition:
+      opacity 0.45s ease-out calc(var(--stagger-i, 0) * 0.09s),
+      transform 0.45s ease-out calc(var(--stagger-i, 0) * 0.09s),
+      border-left-color 0.2s ease-out 0s,
+      background-color 0.2s ease-out 0s;
+  }
+
+  .lineup-extras__item:first-child {
+    border-top: var(--border-width) solid var(--color-border);
+  }
+
+  .lineup-extras__item:hover {
+    border-left-color: var(--color-green);
+    background-color: rgb(57 255 20 / 0.03);
+  }
+
+  .lineup-extras--visible .lineup-extras__item {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lineup-extras__item {
+      opacity: 1;
+      transform: none;
+      transition:
+        border-left-color 0.2s ease-out,
+        background-color 0.2s ease-out;
+    }
+  }
+
+  .lineup-extras__index {
+    font-family: var(--font-pixel);
+    font-size: var(--text-xs);
+    color: var(--color-green);
+    flex-shrink: 0;
+    text-shadow: 0 0 0.5rem rgb(57 255 20 / 60%);
+  }
+
+  .lineup-extras__title {
+    margin: 0 0 var(--space-1);
+    font-size: var(--text-md);
+  }
+
+  /* -------------------------------------------------------------------
+   * Gallery — 3-up thumbnail grid with click-to-expand modal
+   * (GalleryModal React island; styles via :global since scoped CSS
+   *  can't reach React-rendered markup)
+   * ----------------------------------------------------------------- */
+  :global(.gallery-grid) {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-4);
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  :global(.gallery-grid__item) {
+    min-width: 0;
+  }
+
+  :global(.gallery-thumb) {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 0;
+    overflow: hidden;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-raised);
+    cursor: pointer;
+    transition: border-color 0.2s ease-out;
+  }
+
+  :global(.gallery-thumb:hover) {
+    border-color: var(--color-green);
+  }
+
+  :global(.gallery-thumb__img) {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    transition: transform 0.35s ease-out;
+  }
+
+  :global(.gallery-thumb:hover .gallery-thumb__img) {
+    transform: scale(1.06);
+  }
+
+  :global(.gallery-thumb__overlay) {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgb(0 0 0 / 0);
+    color: transparent;
+    transition:
+      background 0.2s ease-out,
+      color 0.2s ease-out;
+  }
+
+  :global(.gallery-thumb:hover .gallery-thumb__overlay) {
+    background: rgb(0 0 0 / 0.55);
+    color: var(--color-green);
+  }
+
+  :global(.gallery-thumb__icon) {
+    width: 2.25rem;
+    height: 2.25rem;
+    filter: drop-shadow(0 0 0.4rem var(--color-green));
+  }
+
+  :global(.gallery-caption) {
+    margin: var(--space-2) 0 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+    text-align: center;
+  }
+
+  /* Modal */
+  :global(.gallery-modal) {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-overlay);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+    background: rgb(0 0 0 / 0.88);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  :global(.gallery-modal__frame) {
+    position: relative;
+    max-width: min(90vw, 820px);
+    max-height: 90vh;
+    overflow: hidden;
+    margin: 0;
+    border: var(--border-width) solid var(--color-green);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 0 2rem rgb(57 255 20 / 40%);
+    background: var(--color-bg-raised);
+    display: flex;
+    flex-direction: column;
+  }
+
+  :global(.gallery-modal__img) {
+    display: block;
+    max-width: 100%;
+    max-height: calc(90vh - 5rem);
+    object-fit: contain;
+  }
+
+  :global(.gallery-modal__caption) {
+    padding: var(--space-3) var(--space-4);
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+    border-top: 1px solid var(--color-border);
+  }
+
+  :global(.gallery-modal__close) {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-overlay);
+    color: var(--color-fg-muted);
+    cursor: pointer;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
+  }
+
+  :global(.gallery-modal__close:hover) {
+    color: var(--color-green);
+    border-color: var(--color-green);
+  }
+
+  :global(.gallery-modal__close svg) {
+    width: 0.9rem;
+    height: 0.9rem;
+  }
+
+  /* -------------------------------------------------------------------
+   * Details — 2-col layout (title+lede+list left, map right)
+   * ----------------------------------------------------------------- */
+
+  .details-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+
+  .details-layout__left {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .details-layout__title {
+    margin: 0;
+  }
+
+  .details-layout__left .lede {
+    margin-bottom: 0;
+  }
+
+  .details-map-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .details-map {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     margin: 0;
     overflow: hidden;
     border: var(--border-width) solid var(--color-border);
@@ -453,40 +1481,37 @@ const faqs = [
     background-color: var(--color-bg-raised);
   }
 
-  .gallery__image {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 4 / 3;
-    object-fit: cover;
-  }
-
-  .gallery__caption {
-    padding: var(--space-3) var(--space-4);
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    color: var(--color-fg-muted);
-  }
-
-  /* -------------------------------------------------------------------
-   * Details — "stat block" definition list
-   * ----------------------------------------------------------------- */
+  /* On mobile, the dl is still a simple stacked list per row */
   .details-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
     margin: 0;
   }
 
   .details-list__row {
     display: grid;
     grid-template-columns: 1fr;
-    gap: var(--space-1);
-    padding-block: var(--space-4);
+    gap: var(--space-2);
+    padding-block: var(--space-3);
     border-bottom: var(--border-width) solid var(--color-border);
+    border-left: 2px solid transparent;
+    padding-left: var(--space-3);
+    transition:
+      border-left-color 0.2s ease-out,
+      background 0.2s ease-out;
+  }
+
+  .details-list__row:first-child {
+    border-top: var(--border-width) solid var(--color-border);
   }
 
   .details-list__row:last-child {
     border-bottom: none;
+  }
+
+  .details-list__row:hover {
+    border-left-color: var(--color-green);
+    background: rgb(57 255 20 / 0.03);
   }
 
   .details-list__term {
@@ -495,12 +1520,89 @@ const faqs = [
     font-weight: var(--weight-bold);
     letter-spacing: var(--tracking-widest);
     text-transform: uppercase;
-    color: var(--color-green-text);
+    color: var(--color-green);
   }
 
   .details-list__description {
     margin: 0;
     color: var(--color-fg);
+  }
+
+  /* FREE starburst — positioned as a corner sticker on the map */
+  @keyframes burst-wobble {
+    0%,
+    100% {
+      transform: rotate(-8deg) scale(1);
+    }
+    50% {
+      transform: rotate(-14deg) scale(1.05);
+    }
+  }
+
+  .free-burst {
+    position: absolute;
+    top: -1.25rem;
+    right: -0.75rem;
+    z-index: 2;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    background: var(--color-amber);
+    color: var(--color-bg);
+    font-family: var(--font-pixel);
+    font-size: 0.4rem;
+    letter-spacing: 0;
+    text-align: center;
+    line-height: 1.3;
+    text-transform: uppercase;
+    clip-path: polygon(
+      50% 0%,
+      63% 25%,
+      93% 7%,
+      75% 35%,
+      100% 50%,
+      75% 65%,
+      93% 93%,
+      63% 75%,
+      50% 100%,
+      37% 75%,
+      7% 93%,
+      25% 65%,
+      0% 50%,
+      25% 35%,
+      7% 7%,
+      37% 25%
+    );
+    filter: drop-shadow(0 0 0.4rem rgb(255 179 71 / 70%));
+    animation: burst-wobble 2.8s ease-in-out infinite;
+    user-select: none;
+  }
+
+  .free-burst__bang {
+    font-size: 0.55rem;
+  }
+
+  .details-map__frame {
+    display: block;
+    width: 100%;
+    height: 16rem;
+    border: 0;
+    /* the brand's neon-on-black palette doesn't extend to Google's map
+       tiles — a light filter keeps it from clashing with the dark theme */
+    filter: grayscale(0.4) invert(0.92) hue-rotate(180deg);
+  }
+
+  .details-map__caption {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-green-text);
   }
 
   /* -------------------------------------------------------------------
@@ -511,16 +1613,29 @@ const faqs = [
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
+    margin-top: var(--space-5);
   }
 
-  .faq-item {
+  :global(.faq-item) {
     padding: var(--space-4) var(--space-5);
     background-color: var(--color-bg-raised);
     border: var(--border-width) solid var(--color-border);
     border-radius: var(--radius-lg);
+    transition:
+      border-color 0.18s ease-out,
+      box-shadow 0.18s ease-out;
   }
 
-  .faq-item__question {
+  :global(.faq-item:hover) {
+    border-color: var(--color-green);
+    box-shadow: var(--glow-green-soft);
+  }
+
+  :global(.faq-item[open]) {
+    border-color: var(--color-green);
+  }
+
+  :global(.faq-item__question) {
     position: relative;
     padding-inline-end: var(--space-6);
     font-family: var(--font-mono);
@@ -528,45 +1643,344 @@ const faqs = [
     font-weight: var(--weight-bold);
     cursor: pointer;
     list-style: none;
+    transition: color 0.15s;
   }
 
-  .faq-item__question::-webkit-details-marker {
+  :global(.faq-item__question:hover) {
+    color: var(--color-green);
+  }
+
+  :global(.faq-item__question)::-webkit-details-marker {
     display: none;
   }
 
-  .faq-item__question::after {
+  :global(.faq-item__question)::after {
     content: '+';
     position: absolute;
     inset-inline-end: 0;
-    color: var(--color-green-text);
+    color: var(--color-green);
     font-weight: var(--weight-bold);
   }
 
-  .faq-item[open] > .faq-item__question::after {
+  :global(.faq-item[open] > .faq-item__question::after) {
     content: '\2212';
   }
 
-  .faq-item__answer {
+  :global(.faq-item__answer) {
     margin-top: var(--space-3);
     color: var(--color-fg-muted);
   }
 
-  /* -------------------------------------------------------------------
-   * Contact / Follow — "continue?" prompt
-   * ----------------------------------------------------------------- */
-  .contact-list {
+  :global(.faq-item__answer p) {
+    margin: 0;
+  }
+
+  :global(.faq-item__answer p + p) {
+    margin-top: var(--space-2);
+  }
+
+  :global(.faq-audio-controls) {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+    border-top: var(--border-width) solid var(--color-border);
+  }
+
+  :global(.faq-audio-btn) {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background-color: transparent;
+    color: var(--color-fg-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    cursor: pointer;
+    transition:
+      color 0.15s ease-out,
+      border-color 0.15s ease-out;
+  }
+
+  :global(.faq-audio-btn:hover) {
+    color: var(--color-green);
+    border-color: currentColor;
+  }
+
+  :global(.faq-audio-btn__icon) {
+    flex-shrink: 0;
+    inline-size: 1em;
+    block-size: 1em;
+  }
+
+  /* FAQ answer + image: 2-col layout (text left, images right) */
+  :global(.faq-item__body--images) {
     display: grid;
     grid-template-columns: 1fr;
-    gap: var(--space-5);
-    list-style: none;
+    gap: var(--space-4);
+    margin-top: var(--space-3);
   }
 
-  .contact-list > li {
+  :global(.faq-item__body--images .faq-item__answer) {
+    margin-top: 0;
+  }
+
+  :global(.faq-item__images) {
     display: flex;
+    justify-content: flex-start;
   }
 
-  .contact-list > li > :global(.card) {
+  :global(.faq-item__single-img) {
+    border-radius: var(--radius-md);
+    border: var(--border-width) solid var(--color-border);
+    max-width: 340px;
     width: 100%;
+    height: auto;
+    object-fit: cover;
+  }
+
+  /* Rebus puzzle images for "Is this real" */
+  :global(.faq-rebus) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  :global(.faq-rebus__step) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+  }
+
+  :global(.faq-rebus__step img) {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    border-radius: var(--radius-md);
+    border: var(--border-width) solid var(--color-border);
+    background: var(--color-bg);
+  }
+
+  :global(.faq-rebus__step figcaption) {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-fg-muted);
+    letter-spacing: var(--tracking-wide);
+    text-align: center;
+  }
+
+  :global(.faq-rebus__op) {
+    font-family: var(--font-mono);
+    font-size: var(--text-xl);
+    color: var(--color-green);
+    font-weight: var(--weight-bold);
+    line-height: 1;
+    margin-bottom: 1.4rem;
+  }
+
+  @media (min-width: 40rem) {
+    :global(.faq-item__body--images) {
+      grid-template-columns: 1fr auto;
+      align-items: start;
+    }
+
+    :global(.faq-item__images) {
+      justify-content: flex-end;
+    }
+  }
+
+  /* +1 level-up particle — fixed overlay triggered by LevelUpFaq */
+  @keyframes level-up-float {
+    0% {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+    20% {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-28px) scale(1.6);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-110px) scale(1.3);
+    }
+  }
+
+  :global(.level-up-particle) {
+    position: fixed;
+    left: 50%;
+    top: 50vh;
+    z-index: 9999;
+    pointer-events: none;
+    font-family: var(--font-pixel);
+    font-size: 3.5rem;
+    color: var(--color-green);
+    text-shadow:
+      0 0 1rem var(--color-green),
+      0 0 2.5rem rgb(57 255 20 / 50%);
+    animation: level-up-float 1.3s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  /* -------------------------------------------------------------------
+   * Contact / Follow — consolidated social card + contact form
+   * ----------------------------------------------------------------- */
+  .follow-card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-top: var(--space-6);
+    margin-bottom: var(--space-7);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background-color: var(--color-bg-raised);
+  }
+
+  .follow-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    text-decoration: none;
+    color: var(--color-fg);
+    border-bottom: var(--border-width) solid var(--color-border);
+    transition: background-color 0.15s ease-out;
+  }
+
+  .follow-item:last-child {
+    border-bottom: none;
+  }
+
+  a.follow-item:hover {
+    background-color: var(--color-bg);
+  }
+
+  a.follow-item:hover .follow-item__label {
+    color: var(--color-green);
+  }
+
+  a.follow-item:hover :global(.icon) {
+    color: var(--color-green);
+  }
+
+  .follow-item :global(.icon) {
+    flex-shrink: 0;
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    color: var(--color-green);
+    transition: color 0.15s ease-out;
+  }
+
+  .follow-item__text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .follow-item__label {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: var(--weight-bold);
+    font-size: var(--text-base);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--color-fg);
+    transition: color 0.15s ease-out;
+  }
+
+  .follow-item__sub {
+    margin: 0;
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+  }
+
+  /* React island (client:visible) — see Card/note above re: :global */
+  :global(.copy-button) {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background-color: transparent;
+    color: var(--color-fg-muted);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    cursor: pointer;
+    transition:
+      color 0.15s ease-out,
+      border-color 0.15s ease-out;
+  }
+
+  :global(.copy-button:hover) {
+    color: var(--color-green);
+    border-color: currentColor;
+  }
+
+  :global(.copy-button .icon) {
+    inline-size: 1.1em;
+    block-size: 1.1em;
+  }
+
+  .contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding: var(--space-5);
+    background-color: var(--color-bg-raised);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+
+  .contact-form__heading {
+    margin: 0;
+    font-size: var(--text-lg);
+  }
+
+  .contact-form__row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .contact-form__row label {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--color-green-text);
+  }
+
+  .contact-form__row input,
+  .contact-form__row textarea {
+    padding: var(--space-3);
+    background-color: var(--color-bg);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-fg);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    resize: vertical;
+  }
+
+  .contact-form__row input:focus-visible,
+  .contact-form__row textarea:focus-visible {
+    outline: var(--border-width) solid var(--color-focus-ring);
+    outline-offset: 0.1em;
+    border-color: var(--color-focus-ring);
   }
 
   /* -------------------------------------------------------------------
@@ -593,35 +2007,155 @@ const faqs = [
     margin: 0;
   }
 
+  .site-footer__copyright {
+    order: -1;
+  }
+
+  .site-footer__tagline {
+    display: block;
+    font-size: 0.7em;
+    opacity: 0.7;
+    margin-top: 0.2em;
+  }
+
+  @media (min-width: 30rem) {
+    .site-footer__inner {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .site-footer__email {
+      order: 0;
+      flex: 1;
+      text-align: left;
+    }
+
+    .site-footer__copyright {
+      order: 0;
+      flex: 1;
+      text-align: center;
+    }
+
+    .site-footer__back-to-top {
+      order: 0;
+      flex: 1;
+      text-align: right;
+    }
+  }
+
   @media (min-width: 48rem) {
     .hero__wordmark {
       font-size: var(--text-4xl);
     }
 
-    .achievements,
-    .contact-list {
+    .acts {
       grid-template-columns: repeat(2, 1fr);
     }
 
-    .gallery {
-      grid-template-columns: repeat(2, 1fr);
+    .lineup-extras-wrap {
+      grid-template-columns: 1.8fr 0.8fr;
+      align-items: start;
     }
 
-    .details-list__row {
-      grid-template-columns: 12rem 1fr;
+    :global(.lineup-extras-video-col .video-player) {
+      height: 100%;
+      max-height: none;
+    }
+
+    :global(.lineup-extras-video-col .video-player__video) {
+      height: 100%;
+      max-height: none;
+      object-fit: cover;
+    }
+
+    /* dl becomes the shared grid so all descriptions align flush left */
+    .details-list {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      column-gap: var(--space-5);
       align-items: baseline;
     }
 
-    .site-footer__inner {
+    .details-list__row {
+      display: contents;
+    }
+
+    .details-list__term,
+    .details-list__description {
+      padding-block: var(--space-3);
+      border-top: var(--border-width) solid var(--color-border);
+    }
+
+    .details-list__term {
+      padding-left: var(--space-3);
+      border-left: 2px solid transparent;
+      transition: border-left-color 0.2s ease-out;
+    }
+
+    .details-list__row:first-child .details-list__term,
+    .details-list__row:first-child .details-list__description {
+      border-top: var(--border-width) solid var(--color-border);
+    }
+
+    .details-list__row:last-child .details-list__term,
+    .details-list__row:last-child .details-list__description {
+      border-bottom: none;
+    }
+
+    .details-list__row:hover .details-list__term {
+      border-left-color: var(--color-green);
+    }
+
+    .details-layout {
+      grid-template-columns: 1.1fr 1fr;
+    }
+
+    /* Map fills the full height of the left column */
+    .details-map__frame {
+      flex: 1;
+      height: auto;
+      min-height: 14rem;
+    }
+
+    /* Follow card switches to a horizontal three-column layout */
+    .follow-card {
       flex-direction: row;
+    }
+
+    .follow-item {
+      flex: 1;
+      flex-direction: column;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
+      text-align: center;
+      border-bottom: none;
+      border-right: var(--border-width) solid var(--color-border);
+    }
+
+    .follow-item:last-child {
+      border-right: none;
+    }
+
+    .follow-item__text {
+      align-items: center;
     }
   }
 
   @media (min-width: 64rem) {
-    .achievements {
+    .acts {
       grid-template-columns: repeat(3, 1fr);
+    }
+
+    .act-card__media {
+      flex-direction: column;
+    }
+
+    .act-card__image--secondary {
+      width: 100%;
+      height: 8rem;
+      border-inline-start: none;
+      border-block-start: var(--border-width) solid var(--color-border);
     }
   }
 </style>

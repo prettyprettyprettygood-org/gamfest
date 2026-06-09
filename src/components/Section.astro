@@ -1,15 +1,8 @@
 ---
-/**
- * Layout primitive for a top-level page section ("level"). Handles the
- * anchored nav target, consistent max-width/padding, and the optional
- * "LEVEL 01" style eyebrow + heading — so individual sections only need to
- * supply their content.
- */
 export interface Props {
   id: string;
   eyebrow?: string;
   title?: string;
-  /** Heading level for `title` — defaults to `h2` (sections sit under the hero's `h1`) */
   headingLevel?: 'h2' | 'h3';
 }
 
@@ -23,7 +16,12 @@ const Heading = headingLevel;
       (eyebrow || title) && (
         <header class="section__header">
           {eyebrow && <p class="section__eyebrow">{eyebrow}</p>}
-          {title && <Heading class="section__title">{title}</Heading>}
+          {title && (
+            <div class="section__title-row">
+              <Heading class="section__title">{title}</Heading>
+              <slot name="title-badge" />
+            </div>
+          )}
         </header>
       )
     }
@@ -35,18 +33,20 @@ const Heading = headingLevel;
 
 <style>
   .section {
+    position: relative;
     padding-block: var(--space-8);
     scroll-margin-top: var(--space-7);
   }
 
   .section__inner {
+    position: relative;
     max-width: var(--content-max-width);
     margin-inline: auto;
     padding-inline: var(--content-padding-inline);
   }
 
   .section__header {
-    margin-bottom: var(--space-6);
+    margin-bottom: var(--space-1);
   }
 
   .section__eyebrow {
@@ -56,10 +56,19 @@ const Heading = headingLevel;
     font-weight: var(--weight-bold);
     letter-spacing: var(--tracking-widest);
     text-transform: uppercase;
-    color: var(--color-green-text);
+    color: var(--color-green);
+  }
+
+  .section__title-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    flex-wrap: nowrap;
   }
 
   .section__title {
+    flex: 1;
+    min-width: 0;
     margin: 0;
   }
 

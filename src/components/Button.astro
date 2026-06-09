@@ -68,14 +68,17 @@ const className = `button button--${variant}`;
   }
 
   .button--primary {
-    color: var(--color-green);
-    box-shadow: var(--glow-green-soft);
+    color: var(--color-bg);
+    background-color: var(--color-green);
+    border-color: var(--color-green);
+    box-shadow: var(--glow-green);
   }
 
   .button--primary:hover {
-    background-color: var(--color-green);
-    color: var(--color-bg);
-    box-shadow: var(--glow-green);
+    box-shadow:
+      var(--glow-green),
+      0 4px 16px rgb(57 255 20 / 35%);
+    filter: brightness(1.1);
   }
 
   .button--secondary {
