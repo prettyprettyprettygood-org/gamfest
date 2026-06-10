@@ -86,7 +86,7 @@ function getPalette(daytime: boolean): Palette {
     windowDark: '#0a0c10',
     sidewalk: '#252830',
     curb: '#1c1e24',
-    road: '#0e0f14',
+    road: '#1c1e26',
   };
 }
 
@@ -358,27 +358,27 @@ function drawBrickBuilding(
   ctx: CanvasRenderingContext2D,
   bldX: number,
   bldWidth: number,
-  baseline: number,
-  canvasHeight: number,
+  top: number,
+  bottom: number,
   cell: number,
   palette: Pick<Palette, 'brickA' | 'brickB' | 'grout'>,
 ) {
   const brickH = Math.max(4, Math.floor(cell * 0.72));
   const brickW = Math.max(10, cell * 2);
   const mortar = 1;
-  const rows = Math.ceil((canvasHeight - baseline) / brickH) + 1;
+  const rows = Math.ceil((bottom - top) / brickH) + 1;
 
   ctx.save();
   ctx.beginPath();
-  ctx.rect(bldX, baseline, bldWidth, canvasHeight - baseline);
+  ctx.rect(bldX, top, bldWidth, bottom - top);
   ctx.clip();
 
   // Solid grout fill — bricks drawn on top so gaps are opaque, not transparent
   ctx.fillStyle = palette.grout;
-  ctx.fillRect(bldX, baseline, bldWidth, canvasHeight - baseline);
+  ctx.fillRect(bldX, top, bldWidth, bottom - top);
 
   for (let row = 0; row < rows; row++) {
-    const ry = baseline + row * brickH;
+    const ry = top + row * brickH;
     const offset = row % 2 === 0 ? 0 : Math.floor(brickW / 2);
     const cols = Math.ceil(bldWidth / brickW) + 2;
 
@@ -407,7 +407,7 @@ function drawStreet(
   elapsed: number,
   daytime: boolean,
 ) {
-  const sidewalkH = Math.round(cell * 1.5);
+  const sidewalkH = Math.round(cell);
   const curbH = Math.max(2, Math.round(cell * 0.35));
   const roadTop = baseline + sidewalkH + curbH;
 
@@ -415,14 +415,13 @@ function drawStreet(
   ctx.fillStyle = palette.sidewalk;
   ctx.fillRect(0, baseline, width, sidewalkH);
 
-  // Tile expansion joints
+  // Tile expansion joints — single row of pavers, vertical joints only
   const jointColor = daytime ? 'rgb(0 0 0 / 0.10)' : 'rgb(0 0 0 / 0.30)';
   ctx.fillStyle = jointColor;
   const tileW = cell * 4;
   for (let tx = 0; tx < width; tx += tileW) {
     ctx.fillRect(Math.round(tx), baseline, 1, sidewalkH);
   }
-  ctx.fillRect(0, baseline + Math.round(sidewalkH * 0.55), width, 1);
 
   // Curb face
   ctx.fillStyle = palette.curb;
@@ -439,7 +438,7 @@ function drawStreet(
   const dashY = roadTop + Math.floor((height - roadTop) * 0.42);
   const dashH = Math.max(1, Math.round(cell * 0.18));
   const dashOffset = (elapsed * 0.018) % cycle;
-  ctx.fillStyle = daytime ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,160,0.30)';
+  ctx.fillStyle = daytime ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,160,0.45)';
   for (let dx = -cycle + dashOffset; dx < width + cycle; dx += cycle) {
     ctx.fillRect(Math.round(dx), dashY, dashW, dashH);
   }
@@ -584,15 +583,19 @@ function draw(
   const bbY = cell * 3;
   const bbFrameBottom = bbY + bbHeight + cell;
 
-  drawPipes(ctx, bbX, bbWidth, bbFrameBottom, baseline, cell, palette.pipe);
+  // Support gap — thin strip of pipes separating the billboard frame from the brick below
+  const pipeGap = cell * 2;
+  const brickTop = bbFrameBottom + pipeGap;
+  drawPipes(ctx, bbX, bbWidth, bbFrameBottom, brickTop, cell, palette.pipe);
 
+  // Brick building — the pedestal the billboard sits on, filling the rest of the gap above the street
   const bbFw = cell * 1.5;
   drawBrickBuilding(
     ctx,
     bbX - bbFw,
     bbWidth + bbFw * 2,
+    brickTop,
     baseline,
-    height,
     cell,
     palette,
   );
