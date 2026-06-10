@@ -169,6 +169,15 @@ button {
 }
 
 /* ---------------------------------------------------------------------
+ * Lede — introductory paragraph, slightly larger than body copy
+ * ------------------------------------------------------------------- */
+.lede {
+  font-size: var(--text-md);
+  color: var(--color-fg);
+  margin-bottom: var(--space-6);
+}
+
+/* ---------------------------------------------------------------------
  * Visually-hidden helper — content for assistive tech only
  * ------------------------------------------------------------------- */
 .visually-hidden {

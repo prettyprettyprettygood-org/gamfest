@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import './VideoPlayer.css';
 
 interface Props {
   src: string;
@@ -50,7 +51,12 @@ export default function VideoPlayer({ src, class: className }: Props) {
       role="button"
       tabIndex={0}
       aria-label={isPlaying ? 'Pause video' : 'Play video'}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); togglePlay(); } }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          togglePlay();
+        }
+      }}
     >
       <video
         ref={videoRef}
@@ -62,14 +68,26 @@ export default function VideoPlayer({ src, class: className }: Props) {
       />
 
       {/* Full overlay — visible when paused, fades away when playing */}
-      <div className={`video-player__overlay${isPlaying ? ' video-player__overlay--playing' : ''}`}>
-        <svg className="video-player__play-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <div
+        className={`video-player__overlay${isPlaying ? ' video-player__overlay--playing' : ''}`}
+      >
+        <svg
+          className="video-player__play-icon"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden="true"
+        >
           <path d="M8 5v14l11-7z" />
         </svg>
       </div>
 
       {/* Bottom controls bar — slides up on hover */}
-      <div className="video-player__controls" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="video-player__controls"
+        role="none"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
         <button
           className="video-player__btn"
           onClick={togglePlay}

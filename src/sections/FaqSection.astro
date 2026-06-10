@@ -1,0 +1,310 @@
+---
+import { Image } from 'astro:assets';
+import Section from '../components/Section.astro';
+import Reveal from '../components/motion/Reveal';
+import DialUpFaq from '../components/islands/DialUpFaq';
+import LevelUpFaq from '../components/islands/LevelUpFaq';
+
+import dialUpSrc from '../assets/audio/dial-up_soundmp3.flac?url';
+import coinSrc from '../assets/audio/pickupCoin.wav?url';
+import brosPhoto from '../assets/images/bros.png';
+import spongebobPhoto from '../assets/images/spongebob.png';
+import thisBigCatPhoto from '../assets/images/this-big-cat.png';
+import isThisRealPhoto from '../assets/images/is-this-real.png';
+import jamPhoto from '../assets/images/jam.png';
+import vestPhoto from '../assets/images/vest.png';
+import ffvPhoto from '../assets/images/final-fantasy-v.png';
+import silentHillFPhoto from '../assets/images/silent-hill-f.png';
+---
+
+<Section
+  id="faq"
+  eyebrow="Level 05 // FAQ"
+  title='"Frequently" asked questions'
+>
+  <Reveal client:visible>
+    <div class="faq-list">
+      <details class="faq-item">
+        <summary class="faq-item__question">Is this a real event?</summary>
+        <div class="faq-item__body--images">
+          <div class="faq-item__answer">
+            <p>Yes — GAM[fest] #1 really happened, in real life.</p>
+            <p>It was not an AI hallucination.</p>
+            <p>We promise.</p>
+          </div>
+          <div class="faq-item__images">
+            <Image
+              src={isThisRealPhoto}
+              alt="Proof that GAM[fest] #1 was a real event"
+              width={280}
+              class="faq-item__single-img"
+            />
+          </div>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary class="faq-item__question"
+          >How is GAM[fest] pronounced?</summary
+        >
+        <div class="faq-item__body--images">
+          <p class="faq-item__answer">
+            Like "JAM" + "fest" (the G is silent, like in "GIF"). Probably.
+          </p>
+          <div
+            class="faq-rebus"
+            role="img"
+            aria-label="Rebus: JAM plus VEST minus V (Final Fantasy V) plus F (Silent Hill F) equals GAM[fest]"
+          >
+            <figure class="faq-rebus__step">
+              <Image src={jamPhoto} alt="" width={72} />
+            </figure>
+            <span class="faq-rebus__op" aria-hidden="true">+</span>
+            <figure class="faq-rebus__step">
+              <Image src={vestPhoto} alt="" width={72} />
+            </figure>
+            <span class="faq-rebus__op" aria-hidden="true">-</span>
+            <figure class="faq-rebus__step">
+              <Image src={ffvPhoto} alt="" width={72} />
+            </figure>
+            <span class="faq-rebus__op" aria-hidden="true">+</span>
+            <figure class="faq-rebus__step">
+              <Image src={silentHillFPhoto} alt="" width={72} />
+            </figure>
+          </div>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary class="faq-item__question">When's the next one?</summary>
+        <div class="faq-item__body--images">
+          <p class="faq-item__answer">
+            TBD — we're hoping to make this an annual thing. (Technically
+            GAM[fest] #1 wasn't the first GAMfest either: J.C.H. ran a few of
+            these back in the day. History write-up coming soon.) Follow on
+            Discord or Facebook and you'll hear it the second we know.
+          </p>
+          <div class="faq-item__images">
+            <Image
+              src={spongebobPhoto}
+              alt="Spongebob squarepants holding a TBD sign"
+              width={220}
+              class="faq-item__single-img"
+            />
+          </div>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary class="faq-item__question"
+          >How big was this going to be?</summary
+        >
+        <div class="faq-item__body--images">
+          <p class="faq-item__answer">
+            Turned out about as expected: a pretty chill crowd wandering through
+            from the larger festival, plenty of chances for people to get a turn
+            on the big screen. An unholy combo of "low-key" and "giant
+            billboard" — and it ruled.
+          </p>
+          <div class="faq-item__images">
+            <Image
+              src={thisBigCatPhoto}
+              alt="This big (cat demonstrating size)"
+              width={220}
+              class="faq-item__single-img"
+            />
+          </div>
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary class="faq-item__question">Where's the after-party?</summary>
+        <div class="faq-item__body--images">
+          <p class="faq-item__answer">
+            All the cool kids know you sprint a few blocks downtown for the 8pm
+            showing of <a
+              href="https://www.baltimorerockopera.org/"
+              target="_blank"
+              rel="noreferrer">Baltimore Rock Opera Society</a
+            >'s newest rock opera: American Vamp.
+          </p>
+          <div class="faq-item__images">
+            <Image
+              src={brosPhoto}
+              alt="Bros at the after-party"
+              width={340}
+              class="faq-item__single-img"
+            />
+          </div>
+        </div>
+      </details>
+
+      <LevelUpFaq
+        client:visible
+        question={`Why doesn't your promo material sling any catchy millennial gamer slang like "LEVEL UP" and "GET AN EXTRA LIFE"?`}
+        answer={`"Some idiot left Dom in charge of making the website." — Alas, I have arrived. As you can see, I have sprinkled some millennial gamer slang in.`}
+        coinSrc={coinSrc}
+      />
+
+      <DialUpFaq
+        client:visible
+        question="I have to go / my mom has to use the phone now."
+        answer="OK, bye."
+        audioSrc={dialUpSrc}
+      />
+    </div>
+  </Reveal>
+</Section>
+
+<style>
+  .faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-top: var(--space-5);
+  }
+
+  /* FAQ islands (DialUpFaq, LevelUpFaq) render <details> with the same classes,
+     so these rules use :global to reach both native and island-rendered markup */
+  :global(.faq-item) {
+    padding: var(--space-4) var(--space-5);
+    background-color: var(--color-bg-raised);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    transition:
+      border-color 0.18s ease-out,
+      box-shadow 0.18s ease-out;
+  }
+
+  :global(.faq-item:hover) {
+    border-color: var(--color-green);
+    box-shadow: var(--glow-green-soft);
+  }
+
+  :global(.faq-item[open]) {
+    border-color: var(--color-green);
+  }
+
+  :global(.faq-item__question) {
+    position: relative;
+    padding-inline-end: var(--space-6);
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    font-weight: var(--weight-bold);
+    cursor: pointer;
+    list-style: none;
+    transition: color 0.15s;
+  }
+
+  :global(.faq-item__question:hover) {
+    color: var(--color-green);
+  }
+
+  :global(.faq-item__question)::-webkit-details-marker {
+    display: none;
+  }
+
+  :global(.faq-item__question)::after {
+    content: '+';
+    position: absolute;
+    inset-inline-end: 0;
+    color: var(--color-green);
+    font-weight: var(--weight-bold);
+  }
+
+  :global(.faq-item[open] > .faq-item__question::after) {
+    content: '\2212';
+  }
+
+  :global(.faq-item__answer) {
+    margin-top: var(--space-3);
+    color: var(--color-fg-muted);
+  }
+
+  :global(.faq-item__answer p) {
+    margin: 0;
+  }
+
+  :global(.faq-item__answer p + p) {
+    margin-top: var(--space-2);
+  }
+
+  /* FAQ answer + image: 2-col layout (text left, image right) */
+  :global(.faq-item__body--images) {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+    margin-top: var(--space-3);
+  }
+
+  :global(.faq-item__body--images .faq-item__answer) {
+    margin-top: 0;
+  }
+
+  :global(.faq-item__images) {
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  :global(.faq-item__single-img) {
+    border-radius: var(--radius-md);
+    border: var(--border-width) solid var(--color-border);
+    max-width: 340px;
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+  }
+
+  /* Pronunciation rebus */
+  :global(.faq-rebus) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  :global(.faq-rebus__step) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
+  }
+
+  :global(.faq-rebus__step img) {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+    border-radius: var(--radius-md);
+    border: var(--border-width) solid var(--color-border);
+    background: var(--color-bg);
+  }
+
+  :global(.faq-rebus__step figcaption) {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-fg-muted);
+    letter-spacing: var(--tracking-wide);
+    text-align: center;
+  }
+
+  :global(.faq-rebus__op) {
+    font-family: var(--font-mono);
+    font-size: var(--text-xl);
+    color: var(--color-green);
+    font-weight: var(--weight-bold);
+    line-height: 1;
+    margin-bottom: 1.4rem;
+  }
+
+  @media (min-width: 40rem) {
+    :global(.faq-item__body--images) {
+      grid-template-columns: 1fr auto;
+      align-items: start;
+    }
+
+    :global(.faq-item__images) {
+      justify-content: flex-end;
+    }
+  }
+</style>

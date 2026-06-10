@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import './GalleryModal.css';
 
 export interface GalleryItem {
   thumbSrc: string;

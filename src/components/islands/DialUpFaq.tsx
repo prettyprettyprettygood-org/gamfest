@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import './DialUpFaq.css';
 
 interface Props {
   question: string;

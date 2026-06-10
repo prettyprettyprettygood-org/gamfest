@@ -1,0 +1,302 @@
+---
+import Section from '../components/Section.astro';
+import Reveal from '../components/motion/Reveal';
+import Icon from '../components/Icon.astro';
+import { charlesStreetPromenadeUrl, mapUrl, mapEmbedUrl } from '../data/config';
+
+const details = [
+  {
+    term: 'When',
+    description:
+      'Saturday, June 6, 2026 — 11am to 6pm (the weather cooperated)',
+  },
+  {
+    term: 'Where',
+    description:
+      'Station North, Baltimore, MD — outdoors at E. Lanvale St & N. Charles St, near Metro Gallery',
+    link: { href: mapUrl, label: 'Open in Google Maps' },
+  },
+  {
+    term: 'Who',
+    description: "Baltimore's Charles Street Promenade festival",
+    link: {
+      href: charlesStreetPromenadeUrl,
+      label: 'charlesstreetpromenade.com',
+    },
+  },
+];
+---
+
+<Section id="details" eyebrow="Level 04 // Info">
+  <Reveal client:visible>
+    <div class="details-layout">
+      <div class="details-layout__left">
+        <h2 class="details-layout__title">The details (for next time)</h2>
+        <p class="lede">
+          Here's how GAM[fest] #1 went down — good context for whenever #2
+          lands.
+        </p>
+        <dl class="details-list">
+          {
+            details.map((row) => (
+              <div class="details-list__row">
+                <dt class="details-list__term">{row.term}</dt>
+                <dd class="details-list__description">
+                  {row.description}
+                  {row.link && (
+                    <>
+                      {' — '}
+                      <a href={row.link.href} target="_blank" rel="noreferrer">
+                        {row.link.label}
+                      </a>
+                    </>
+                  )}
+                </dd>
+              </div>
+            ))
+          }
+        </dl>
+      </div>
+      <div class="details-map-wrap">
+        <div class="free-burst" aria-label="Free event">
+          <span>FREE</span>
+          <span class="free-burst__bang">!</span>
+        </div>
+        <figure class="details-map">
+          <iframe
+            class="details-map__frame"
+            src={mapEmbedUrl}
+            title="Map of E. Lanvale St & N. Charles St, Station North, Baltimore, MD"
+            loading="lazy"
+            referrerpolicy="no-referrer-when-downgrade"></iframe>
+          <figcaption class="details-map__caption">
+            <Icon name="map-pin" />
+            <a href={mapUrl} target="_blank" rel="noreferrer"
+              >Open in Google Maps</a
+            >
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+  </Reveal>
+</Section>
+
+<style>
+  /* -------------------------------------------------------------------
+   * Details — 2-col layout (title + lede + list left, map right)
+   * ----------------------------------------------------------------- */
+  .details-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+
+  .details-layout__left {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  .details-layout__title {
+    margin: 0;
+  }
+
+  .details-layout__left .lede {
+    margin-bottom: 0;
+  }
+
+  .details-map-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .details-map {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    overflow: hidden;
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background-color: var(--color-bg-raised);
+  }
+
+  /* Mobile: simple stacked list */
+  .details-list {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+  }
+
+  .details-list__row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+    padding-block: var(--space-3);
+    border-bottom: var(--border-width) solid var(--color-border);
+    border-left: var(--border-width) solid transparent;
+    padding-left: var(--space-3);
+    transition:
+      border-left-color 0.2s ease-out,
+      background 0.2s ease-out;
+  }
+
+  .details-list__row:first-child {
+    border-top: var(--border-width) solid var(--color-border);
+  }
+
+  .details-list__row:last-child {
+    border-bottom: none;
+  }
+
+  .details-list__row:hover {
+    border-left-color: var(--color-green);
+    background: rgb(var(--color-green-rgb) / 0.03);
+  }
+
+  .details-list__term {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+    color: var(--color-green);
+  }
+
+  .details-list__description {
+    margin: 0;
+    color: var(--color-fg);
+  }
+
+  /* FREE starburst — corner sticker on the map */
+  @keyframes burst-wobble {
+    0%,
+    100% {
+      transform: rotate(-8deg) scale(1);
+    }
+    50% {
+      transform: rotate(-14deg) scale(1.05);
+    }
+  }
+
+  .free-burst {
+    position: absolute;
+    top: -1.25rem;
+    right: -0.75rem;
+    z-index: 2;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    background: var(--color-amber);
+    color: var(--color-bg);
+    font-family: var(--font-pixel);
+    font-size: 0.4rem;
+    letter-spacing: 0;
+    text-align: center;
+    line-height: 1.3;
+    text-transform: uppercase;
+    clip-path: polygon(
+      50% 0%,
+      63% 25%,
+      93% 7%,
+      75% 35%,
+      100% 50%,
+      75% 65%,
+      93% 93%,
+      63% 75%,
+      50% 100%,
+      37% 75%,
+      7% 93%,
+      25% 65%,
+      0% 50%,
+      25% 35%,
+      7% 7%,
+      37% 25%
+    );
+    filter: drop-shadow(0 0 0.4rem rgb(255 179 71 / 70%));
+    animation: burst-wobble 2.8s ease-in-out infinite;
+    user-select: none;
+  }
+
+  .free-burst__bang {
+    font-size: 0.55rem;
+  }
+
+  .details-map__frame {
+    display: block;
+    width: 100%;
+    height: 16rem;
+    border: 0;
+    /* The brand's neon-on-black palette doesn't extend to Google's map tiles —
+       a light filter keeps it from clashing with the dark theme */
+    filter: grayscale(0.4) invert(0.92) hue-rotate(180deg);
+  }
+
+  .details-map__caption {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-green-text);
+  }
+
+  /* Desktop: 2-col layout; dl becomes a shared grid for aligned labels */
+  @media (min-width: 48rem) {
+    .details-layout {
+      grid-template-columns: 1.1fr 1fr;
+    }
+
+    .details-list {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      column-gap: var(--space-5);
+      align-items: baseline;
+    }
+
+    /* display:contents lets dt/dd participate directly in the parent grid.
+       Note: this removes the row box, so the hover background only works on
+       mobile — on desktop only the left border of the term animates. */
+    .details-list__row {
+      display: contents;
+    }
+
+    .details-list__term,
+    .details-list__description {
+      padding-block: var(--space-3);
+      border-top: var(--border-width) solid var(--color-border);
+    }
+
+    .details-list__term {
+      padding-left: var(--space-3);
+      border-left: var(--border-width) solid transparent;
+      transition: border-left-color 0.2s ease-out;
+    }
+
+    .details-list__row:last-child .details-list__term,
+    .details-list__row:last-child .details-list__description {
+      border-bottom: none;
+    }
+
+    .details-list__row:hover .details-list__term {
+      border-left-color: var(--color-green);
+    }
+
+    .details-list__row:hover .details-list__term,
+    .details-list__row:hover .details-list__description {
+      background: rgb(var(--color-green-rgb) / 0.03);
+    }
+
+    .details-map__frame {
+      flex: 1;
+      height: auto;
+      min-height: 14rem;
+    }
+  }
+</style>

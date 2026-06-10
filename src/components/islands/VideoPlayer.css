@@ -1,0 +1,97 @@
+.video-player {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: var(--border-width) solid var(--color-border);
+  cursor: pointer;
+  display: block;
+  outline: none;
+  transition:
+    border-color 0.2s ease-out,
+    box-shadow 0.2s ease-out;
+}
+
+.video-player:hover {
+  border-color: var(--color-green);
+  box-shadow: var(--glow-green-soft);
+}
+
+.video-player:focus-visible {
+  outline: var(--border-width) solid var(--color-focus-ring);
+  outline-offset: 0.15rem;
+}
+
+.video-player__video {
+  display: block;
+  width: 100%;
+}
+
+.video-player__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.6);
+  color: var(--color-green);
+  transition: opacity 0.2s ease-out;
+}
+
+.video-player__overlay--playing {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.video-player__play-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  filter: drop-shadow(0 0 0.4rem var(--color-green));
+}
+
+.video-player__controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: linear-gradient(transparent, rgb(0 0 0 / 0.8));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-out;
+}
+
+.video-player:hover .video-player__controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.video-player__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: var(--border-width) solid var(--color-green);
+  border-radius: var(--radius-md);
+  background: rgb(0 0 0 / 0.6);
+  color: var(--color-green);
+  cursor: pointer;
+  transition:
+    background 0.15s ease-out,
+    box-shadow 0.15s ease-out;
+}
+
+.video-player__btn:hover {
+  background: rgb(var(--color-green-rgb) / 0.2);
+  box-shadow: var(--glow-green-soft);
+}
+
+.video-player__btn svg {
+  width: 1rem;
+  height: 1rem;
+}

@@ -1,0 +1,83 @@
+---
+import { getImage } from 'astro:assets';
+import Section from '../components/Section.astro';
+import Reveal from '../components/motion/Reveal';
+import GalleryModal from '../components/islands/GalleryModal';
+
+import billboardPhoto from '../assets/images/gamfest-billboard.jpg';
+import bigScreenPhoto from '../assets/images/game-on-big-screen.webp';
+import yoshiBillboardPhoto from '../assets/images/yoshi-billboard.webp';
+import gamFestSignPhoto from '../assets/images/gam-fest-sign.jpg';
+import marsLivePhoto from '../assets/images/mars-live.jpg';
+import marsRunPhoto from '../assets/images/mars-run.jpg';
+
+const galleryItems = [
+  {
+    thumbSrc: (
+      await getImage({ src: billboardPhoto, width: 600, format: 'webp' })
+    ).src,
+    fullSrc: (await getImage({ src: billboardPhoto, width: 1400 })).src,
+    alt: 'A five-story LED billboard displaying the Legend of Zelda 1986 title screen — sword, shield emblem, and "Push Start Button" — with the GAM[fest] "Games | Art | Music | Fest" banner and the date and web address overlaid above and below, against a clear blue sky.',
+    caption: 'The billboard: The Legend of Zelda, five stories tall.',
+    thumbPosition: 'center',
+  },
+  {
+    thumbSrc: (
+      await getImage({ src: bigScreenPhoto, width: 600, format: 'webp' })
+    ).src,
+    fullSrc: (await getImage({ src: bigScreenPhoto, width: 1200 })).src,
+    alt: 'A crowd gathers on a Baltimore street corner, watching Super Mario Bros. run on a giant LED billboard mounted above a brick warehouse, with traffic cones and an inflatable arch set up for the festival on the street below.',
+    caption: 'The crowd gathers as Mario takes the big screen.',
+    thumbPosition: 'top',
+  },
+  {
+    thumbSrc: (
+      await getImage({ src: yoshiBillboardPhoto, width: 600, format: 'webp' })
+    ).src,
+    fullSrc: (await getImage({ src: yoshiBillboardPhoto, width: 1200 })).src,
+    alt: "A tall view of the LED billboard mounted above a Station North brick warehouse, displaying the overworld map from Super Mario World's Yoshi's Island, with festival tents and a small crowd gathered on the street below.",
+    caption:
+      "Yoshi's Island, five stories up — and a street-level view of the whole setup.",
+    thumbPosition: 'top center',
+  },
+  {
+    thumbSrc: (
+      await getImage({ src: gamFestSignPhoto, width: 600, format: 'webp' })
+    ).src,
+    fullSrc: (await getImage({ src: gamFestSignPhoto, width: 1400 })).src,
+    alt: 'A GAM[fest] festival sign on display at the event.',
+    caption: 'The GAM[fest] sign welcoming attendees.',
+    thumbPosition: 'center',
+  },
+  {
+    thumbSrc: (
+      await getImage({ src: marsLivePhoto, width: 600, format: 'webp' })
+    ).src,
+    fullSrc: (await getImage({ src: marsLivePhoto, width: 1400 })).src,
+    alt: 'Mars performing live on stage at GAM[fest].',
+    caption: 'Mars live on stage.',
+    thumbPosition: 'center',
+  },
+  {
+    thumbSrc: (
+      await getImage({ src: marsRunPhoto, width: 600, format: 'webp' })
+    ).src,
+    fullSrc: (await getImage({ src: marsRunPhoto, width: 1400 })).src,
+    alt: 'Mars running during a performance at GAM[fest].',
+    caption: 'Mars bringing the energy.',
+    thumbPosition: 'center',
+  },
+];
+---
+
+<Section id="gallery" eyebrow="Level 03 // Gallery" title="From the big screen">
+  <Reveal client:visible>
+    <p class="lede">
+      A few shots from the day — click any photo to view full size. More on the
+      GAM[fest] Facebook page.
+    </p>
+  </Reveal>
+  <Reveal client:visible delay={0.12}>
+    <GalleryModal client:visible items={galleryItems} />
+  </Reveal>
+</Section>

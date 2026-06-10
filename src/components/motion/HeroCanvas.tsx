@@ -21,6 +21,9 @@ interface Palette {
   ground: string;
   windowLit: string;
   windowDark: string;
+  sidewalk: string;
+  curb: string;
+  road: string;
 }
 
 interface SpriteInfo {
@@ -30,6 +33,9 @@ interface SpriteInfo {
 }
 
 function isESTDaytime(): boolean {
+  const override = new URLSearchParams(window.location.search).get('heroTime');
+  if (override === 'day') return true;
+  if (override === 'night') return false;
   const h =
     +new Date().toLocaleString('en-US', {
       timeZone: 'America/New_York',
@@ -57,6 +63,9 @@ function getPalette(daytime: boolean): Palette {
       ground: '#5c4530',
       windowLit: '#cce0f4',
       windowDark: '#4a6880',
+      sidewalk: '#c8c0b0',
+      curb: '#948878',
+      road: '#686870',
     };
   }
   return {
@@ -75,6 +84,9 @@ function getPalette(daytime: boolean): Palette {
     ground: '#1a1820',
     windowLit: '#f0c840',
     windowDark: '#0a0c10',
+    sidewalk: '#252830',
+    curb: '#1c1e24',
+    road: '#0e0f14',
   };
 }
 
@@ -88,7 +100,7 @@ const STARS = Array.from({ length: 30 }, (_, i) => ({
   xFrac: 0.48 + pseudoRandom(i * 17.391 + 1.1) * 0.52,
   yFrac: pseudoRandom(i * 11.721 + 2.3) * 0.86,
   size: pseudoRandom(i * 7.153) > 0.82 ? 2 : 1,
-  alpha: 0.10 + pseudoRandom(i * 5.317) * 0.25,
+  alpha: 0.1 + pseudoRandom(i * 5.317) * 0.25,
   phase: pseudoRandom(i * 13.891) * Math.PI * 2,
   speed: 0.25 + pseudoRandom(i * 3.741) * 0.75,
 }));
@@ -133,9 +145,18 @@ function drawBuildingWindows(
   const padX = Math.max(2, Math.floor(cell * 0.6));
   const padTop = Math.max(2, Math.floor(cell * 0.8));
 
+  // Center the window grid: count how many columns fit then distribute symmetrically
+  const numCols = Math.max(
+    1,
+    Math.floor((bldWidth - 2 * padX - winW) / gapX) + 1,
+  );
+  const totalSpanX = (numCols - 1) * gapX + winW;
+  const startX = bldX + Math.floor((bldWidth - totalSpanX) / 2);
+
   let idx = 0;
   for (let wy = bldTop + padTop; wy + winH <= bldBottom - 2; wy += gapY) {
-    for (let wx = bldX + padX; wx + winW <= bldX + bldWidth - padX; wx += gapX) {
+    for (let col = 0; col < numCols; col++) {
+      const wx = startX + col * gapX;
       let isLit = pseudoRandom(bldSeed + idx * 7.3) < litProb;
 
       // ~4% of windows can toggle on/off over time — a slow, rare flicker
@@ -148,7 +169,12 @@ function drawBuildingWindows(
       if (isLit) {
         ctx.globalAlpha = 0.22;
         ctx.fillStyle = litColor;
-        ctx.fillRect(Math.round(wx) - 1, Math.round(wy) - 1, winW + 2, winH + 2);
+        ctx.fillRect(
+          Math.round(wx) - 1,
+          Math.round(wy) - 1,
+          winW + 2,
+          winH + 2,
+        );
         ctx.globalAlpha = 1;
       }
       ctx.fillStyle = isLit ? litColor : darkColor;
@@ -183,26 +209,39 @@ function drawSkyline(
     const worldCol = baseCol + i;
 
     // Slow envelope sets neighborhood character; fast component gives per-building drama
-    const t = worldCol * 0.10 + seed * 4.1;
+    const t = worldCol * 0.1 + seed * 4.1;
     const tFast = worldCol * 1.5 + seed * 2.71;
     const slow = Math.sin(t) * 0.5 + Math.sin(t * 0.55 + 2.1) * 0.3;
     const fast = Math.sin(tFast) * 0.5 + Math.sin(tFast * 1.7 + 1.2) * 0.3;
     const raw = Math.max(0, Math.min(1, (slow * 0.4 + fast * 0.6 + 1.0) / 2.0));
     // S-curve contrast — biases strongly toward very tall or very short (avoids mid-range)
-    const n = raw < 0.5
-      ? 0.5 * Math.pow(2 * raw, 2.3)
-      : 1 - 0.5 * Math.pow(2 * (1 - raw), 2.3);
+    const n =
+      raw < 0.5
+        ? 0.5 * Math.pow(2 * raw, 2.3)
+        : 1 - 0.5 * Math.pow(2 * (1 - raw), 2.3);
     const h = minHeight + n * (maxHeight - minHeight);
 
-    const top = baseline - h;
+    const bx = Math.round(x);
+    const bt = Math.round(baseline - h);
     ctx.fillStyle = color;
-    ctx.fillRect(x, top, step - 4, bottom - top);
+    ctx.fillRect(bx, bt, step + 1, bottom - bt);
+    // Shadow strip at right edge — simulates an alley without exposing background
+    ctx.fillStyle = 'rgb(0 0 0 / 0.18)';
+    ctx.fillRect(bx + step - 2, bt, 3, bottom - bt);
 
     if (windowLit && windowDark) {
       drawBuildingWindows(
-        ctx, x, top, bottom, step - 4, cell,
+        ctx,
+        bx,
+        bt,
+        bottom,
+        step + 1,
+        cell,
         worldCol * 73 + seed * 1000,
-        windowLit, windowDark, litProb, elapsed,
+        windowLit,
+        windowDark,
+        litProb,
+        elapsed,
       );
     }
   }
@@ -236,6 +275,8 @@ const FACE_FRAMES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
   ],
 ];
 
+const BILLBOARD_TEXT = 'That happened. It ruled.';
+
 function drawBillboard(
   ctx: CanvasRenderingContext2D,
   origin: { x: number; y: number },
@@ -243,6 +284,7 @@ function drawBillboard(
   colors: { frame: string; screen: string; glow: string; facePixel: string },
   frame: number,
   nightGlow = false,
+  elapsed = 0,
 ) {
   const { x, y } = origin;
   const { width, height, cell } = size;
@@ -267,13 +309,31 @@ function drawBillboard(
     ctx.fillRect(x, y, width, height);
   }
 
+  // Face — shifted into upper ~40% of screen to leave room for text below
   ctx.fillStyle = colors.facePixel;
   const px = Math.max(2, Math.floor(width / 10));
   const ox = x + (width - px * 8) / 2;
-  const oy = y + (height - px * 6) / 2;
+  const oy = y + Math.floor((height - px * 6) * 0.32);
   FACE_FRAMES[frame].forEach(([col, row]) => {
     ctx.fillRect(ox + col * px, oy + row * px, px - 1, px - 1);
   });
+
+  // Terminal text with blinking underscore cursor
+  const cursor = Math.floor(elapsed / 530) % 2 === 0 ? '_' : ' ';
+  const fullText = BILLBOARD_TEXT + cursor;
+  const maxW = width - cell * 2;
+  let fs = Math.max(8, Math.floor(cell * 1.6));
+  ctx.font = `${fs}px 'VT323', monospace`;
+  while (ctx.measureText(fullText).width > maxW && fs > 8) {
+    fs -= 1;
+    ctx.font = `${fs}px 'VT323', monospace`;
+  }
+  ctx.fillStyle = colors.facePixel;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(fullText, x + width / 2, y + height - Math.floor(cell * 0.5));
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
 }
 
 function drawPipes(
@@ -335,6 +395,64 @@ function drawBrickBuilding(
   }
 
   ctx.restore();
+}
+
+function drawStreet(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  baseline: number,
+  cell: number,
+  palette: Palette,
+  elapsed: number,
+  daytime: boolean,
+) {
+  const sidewalkH = Math.round(cell * 1.5);
+  const curbH = Math.max(2, Math.round(cell * 0.35));
+  const roadTop = baseline + sidewalkH + curbH;
+
+  // Sidewalk slab
+  ctx.fillStyle = palette.sidewalk;
+  ctx.fillRect(0, baseline, width, sidewalkH);
+
+  // Tile expansion joints
+  const jointColor = daytime ? 'rgb(0 0 0 / 0.10)' : 'rgb(0 0 0 / 0.30)';
+  ctx.fillStyle = jointColor;
+  const tileW = cell * 4;
+  for (let tx = 0; tx < width; tx += tileW) {
+    ctx.fillRect(Math.round(tx), baseline, 1, sidewalkH);
+  }
+  ctx.fillRect(0, baseline + Math.round(sidewalkH * 0.55), width, 1);
+
+  // Curb face
+  ctx.fillStyle = palette.curb;
+  ctx.fillRect(0, baseline + sidewalkH, width, curbH);
+
+  // Road
+  ctx.fillStyle = palette.road;
+  ctx.fillRect(0, roadTop, width, height - roadTop);
+
+  // Scrolling center dashes
+  const dashW = cell * 3;
+  const dashGap = cell * 2;
+  const cycle = dashW + dashGap;
+  const dashY = roadTop + Math.floor((height - roadTop) * 0.42);
+  const dashH = Math.max(1, Math.round(cell * 0.18));
+  const dashOffset = (elapsed * 0.018) % cycle;
+  ctx.fillStyle = daytime ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,160,0.30)';
+  for (let dx = -cycle + dashOffset; dx < width + cycle; dx += cycle) {
+    ctx.fillRect(Math.round(dx), dashY, dashW, dashH);
+  }
+
+  // Night: neon-green reflection pooling on the sidewalk near the billboard
+  if (!daytime) {
+    const refW = width * 0.48;
+    const grad = ctx.createLinearGradient(width - refW, 0, width, 0);
+    grad.addColorStop(0, 'rgba(57,255,20,0)');
+    grad.addColorStop(1, 'rgba(57,255,20,0.09)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(width - refW, baseline, refW, sidewalkH);
+  }
 }
 
 function drawScanlines(
@@ -430,14 +548,34 @@ function draw(
 
   // Far skyline — no windows, wide height range for dramatic silhouette
   drawSkyline(
-    ctx, width, baseline, elapsed * 0.012,
-    palette.skylineFar, cell * 7, height * 0.04, height * 0.68, 11, height,
+    ctx,
+    width,
+    baseline,
+    elapsed * 0.012,
+    palette.skylineFar,
+    cell * 7,
+    height * 0.04,
+    height * 0.68,
+    11,
+    height,
   );
   // Near skyline — with windows, wide range: short squat blocks to tall towers
   drawSkyline(
-    ctx, width, baseline, elapsed * 0.03,
-    palette.skylineNear, cell * 5, height * 0.03, height * 0.50, 47, height,
-    palette.windowLit, palette.windowDark, cell, 0.06, elapsed,
+    ctx,
+    width,
+    baseline,
+    elapsed * 0.03,
+    palette.skylineNear,
+    cell * 5,
+    height * 0.03,
+    height * 0.5,
+    47,
+    height,
+    palette.windowLit,
+    palette.windowDark,
+    cell,
+    0.06,
+    elapsed,
   );
 
   const bbWidth = cell * 13;
@@ -449,7 +587,15 @@ function draw(
   drawPipes(ctx, bbX, bbWidth, bbFrameBottom, baseline, cell, palette.pipe);
 
   const bbFw = cell * 1.5;
-  drawBrickBuilding(ctx, bbX - bbFw, bbWidth + bbFw * 2, baseline, height, cell, palette);
+  drawBrickBuilding(
+    ctx,
+    bbX - bbFw,
+    bbWidth + bbFw * 2,
+    baseline,
+    height,
+    cell,
+    palette,
+  );
 
   drawBillboard(
     ctx,
@@ -463,7 +609,10 @@ function draw(
     },
     Math.floor(elapsed / 1400) % FACE_FRAMES.length,
     !daytime,
+    elapsed,
   );
+
+  drawStreet(ctx, width, height, baseline, cell, palette, elapsed, daytime);
 
   if (sprite) {
     const scale = Math.max(2, Math.ceil(cell / 8));
@@ -472,7 +621,7 @@ function draw(
     const travel = width + spriteW * 2;
     const sx = ((elapsed * 0.045) % travel) - spriteW;
     const bob = Math.floor(elapsed / 220) % 2 === 0 ? 0 : -scale;
-    const sy = height - spriteH - Math.max(1, scale) + bob;
+    const sy = Math.round(baseline) - spriteH + bob;
 
     ctx.save();
     ctx.imageSmoothingEnabled = false;

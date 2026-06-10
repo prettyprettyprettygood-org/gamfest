@@ -1,0 +1,210 @@
+---
+import Button from '../components/Button.astro';
+import Badge from '../components/Badge.astro';
+import HeroCanvas from '../components/motion/HeroCanvas';
+import { discordUrl, facebookUrl } from '../data/config';
+
+const isDev = import.meta.env.DEV;
+---
+
+<header class="hero">
+  <div class="hero__canvas-wrap" aria-hidden="true">
+    <HeroCanvas client:load />
+  </div>
+  <div class="hero__content">
+    <p class="hero__tagline">Games | Art | Music | Fest</p>
+    <h1 class="hero__wordmark">
+      GAM<span class="hero__wordmark-accent">[fest]</span>
+    </h1>
+    <div class="hero__badges">
+      <Badge variant="green">Free</Badge>
+      <Badge variant="amber">IRL</Badge>
+      <Badge variant="magenta">TBD 2027</Badge>
+    </div>
+    <div class="hero__actions">
+      <Button href={discordUrl} variant="primary">Follow on Discord</Button>
+      <Button href={facebookUrl} variant="secondary">Follow on Facebook</Button>
+    </div>
+  </div>
+  {
+    isDev && (
+      <button
+        id="hero-time-toggle"
+        class="hero-dev-toggle"
+        type="button"
+        aria-label="Toggle hero day/night mode"
+      >
+        ☀ DAY
+      </button>
+    )
+  }
+</header>
+
+<script>
+  // Dev-only toggle — exits immediately in production where the button is not rendered
+  const btn = document.getElementById('hero-time-toggle');
+  if (btn) {
+    const current = document.documentElement.dataset.heroTime ?? 'night';
+    btn.textContent = current === 'day' ? '☀ DAY' : '☽ NIGHT';
+    btn.addEventListener('click', () => {
+      const next =
+        document.documentElement.dataset.heroTime === 'day' ? 'night' : 'day';
+      const url = new URL(window.location.href);
+      url.searchParams.set('heroTime', next);
+      window.location.href = url.toString();
+    });
+  }
+</script>
+
+<style>
+  /* Mobile: stacked text-only layout; canvas hidden until ≥ 48rem */
+  .hero {
+    position: relative;
+    max-width: var(--content-max-width);
+    margin-inline: auto;
+    overflow: hidden;
+  }
+
+  .hero__canvas-wrap {
+    display: none;
+  }
+
+  .hero__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4);
+    padding-block: var(--space-9);
+    padding-inline: var(--content-padding-inline);
+  }
+
+  .hero__tagline {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--weight-bold);
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+    color: var(--hero-tagline-color, var(--color-green-text));
+  }
+
+  .hero__wordmark {
+    font-size: var(--text-3xl);
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-wide);
+    color: var(--hero-fg, var(--color-fg));
+  }
+
+  .hero__wordmark-accent {
+    color: var(--color-bg);
+    background-color: var(--color-green);
+    padding-inline: 0.15em;
+    box-shadow: var(--glow-green);
+  }
+
+  .hero__badges,
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .hero__actions {
+    flex-wrap: nowrap;
+  }
+
+  /* The HeroCanvas React island renders a <canvas> with this class */
+  :global(.hero-canvas) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-color: var(--color-bg-raised);
+  }
+
+  /* Day-mode palette overrides — only at ≥ 48rem where the canvas sky is visible */
+  @media (min-width: 48rem) {
+    :global([data-hero-time='day']) {
+      --hero-tagline-color: var(--color-hero-day-tagline);
+      --hero-fg: var(--color-hero-day-fg);
+      --hero-fg-muted: var(--color-hero-day-fg-muted);
+    }
+
+    /* Subtle scrim — kept light so the canvas/sprites behind stay visible */
+    :global([data-hero-time='day']) .hero__content {
+      background: linear-gradient(
+        to right,
+        rgb(255 255 255 / 0.3) 0%,
+        rgb(255 255 255 / 0.08) 60%,
+        transparent
+      );
+    }
+
+    /* Badges: dark chip so neon colors stay legible against the light sky */
+    :global([data-hero-time='day']) .hero__badges :global(.badge) {
+      background-color: rgb(var(--color-bg-rgb) / 0.8);
+    }
+
+    /* Secondary button: same dark backing for amber outline button */
+    :global([data-hero-time='day']) .hero__actions :global(.button--secondary) {
+      background-color: rgb(var(--color-bg-rgb) / 0.8);
+    }
+
+    /* Canvas CSS background matches the day sky so sub-pixel gaps show sky-blue */
+    :global([data-hero-time='day'] .hero-canvas) {
+      background-color: var(--color-hero-day-sky);
+    }
+  }
+
+  /* Desktop: canvas fills full container, text overlaid on left */
+  @media (min-width: 48rem) {
+    .hero {
+      aspect-ratio: 2.1 / 1;
+      min-height: 340px;
+      max-height: 72vh;
+      margin-top: var(--space-2);
+      border-radius: var(--radius-lg);
+    }
+
+    .hero__canvas-wrap {
+      display: block;
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .hero__content {
+      position: absolute;
+      inset-block: 0;
+      left: 0;
+      width: 58%;
+      justify-content: flex-start;
+      padding: var(--space-7) var(--space-8);
+      z-index: 1;
+    }
+
+    .hero__wordmark {
+      font-size: var(--text-4xl);
+    }
+  }
+
+  /* Dev-only: hero day/night toggle — stripped at build time via isDev */
+  .hero-dev-toggle {
+    position: absolute;
+    bottom: var(--space-3);
+    right: var(--space-3);
+    z-index: 10;
+    padding: var(--space-1) var(--space-3);
+    background: rgb(var(--color-bg-rgb) / 0.72);
+    color: var(--color-green);
+    border: var(--border-width) solid var(--color-green);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    line-height: 1.8;
+  }
+
+  .hero-dev-toggle:hover {
+    background: rgb(var(--color-green-rgb) / 0.12);
+  }
+</style>

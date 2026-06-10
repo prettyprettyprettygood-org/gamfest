@@ -28,6 +28,16 @@
   /* Color — brand green (vivid swatch vs. body-safe text variant) */
   --color-green: #39ff14;
   --color-green-text: #8fe39a;
+  /* RGB channels for alpha variants: rgb(var(--color-green-rgb) / 0.05) */
+  --color-green-rgb: 57 255 20;
+  --color-bg-rgb: 13 14 16;
+
+  /* Hero day-mode palette — overrides applied via [data-hero-time="day"] at ≥ 48rem.
+     Accessible text colors for rendering over the light daytime sky canvas. */
+  --color-hero-day-tagline: #0d7a32;
+  --color-hero-day-fg: #1a2030;
+  --color-hero-day-fg-muted: #384858;
+  --color-hero-day-sky: #87ceeb;
 
   /* Color — secondary retro accents, used sparingly for highlights/badges */
   --color-amber: #ffb347;

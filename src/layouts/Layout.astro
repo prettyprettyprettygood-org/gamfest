@@ -35,7 +35,14 @@ const levels = [
     <!-- Sets data-hero-time before first paint so day/night CSS vars apply without flash -->
     <script is:inline>
       (function () {
-        var h =
+        const override = new URLSearchParams(window.location.search).get(
+          'heroTime',
+        );
+        if (override === 'day' || override === 'night') {
+          document.documentElement.dataset.heroTime = override;
+          return;
+        }
+        const h =
           +new Date().toLocaleString('en-US', {
             timeZone: 'America/New_York',
             hour: '2-digit',

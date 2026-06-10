@@ -1,0 +1,80 @@
+---
+import { contactEmail } from '../data/config';
+---
+
+<footer class="site-footer">
+  <div class="site-footer__inner">
+    <p class="site-footer__email">
+      <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
+    </p>
+    <p class="site-footer__copyright">
+      &copy; 2026 GAM[fest]&trade;
+      <span class="site-footer__tagline"
+        >&ldquo;This is a real event&rdquo;&trade;</span
+      >
+    </p>
+    <p class="site-footer__back-to-top">
+      <a href="#main">Back to top</a>
+    </p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: var(--border-width) solid var(--color-border);
+  }
+
+  .site-footer__inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    max-width: var(--content-max-width);
+    margin-inline: auto;
+    padding-block: var(--space-6);
+    padding-inline: var(--content-padding-inline);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-fg-muted);
+  }
+
+  .site-footer__inner p {
+    margin: 0;
+  }
+
+  .site-footer__copyright {
+    order: -1;
+  }
+
+  .site-footer__tagline {
+    display: block;
+    font-size: 0.7em;
+    opacity: 0.7;
+    margin-top: 0.2em;
+  }
+
+  @media (min-width: 30rem) {
+    .site-footer__inner {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .site-footer__email {
+      order: 0;
+      flex: 1;
+      text-align: left;
+    }
+
+    .site-footer__copyright {
+      order: 0;
+      flex: 1;
+      text-align: center;
+    }
+
+    .site-footer__back-to-top {
+      order: 0;
+      flex: 1;
+      text-align: right;
+    }
+  }
+</style>
