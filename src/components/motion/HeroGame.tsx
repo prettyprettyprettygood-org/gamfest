@@ -16,13 +16,14 @@ const HERO_BASELINE_RATIO = 0.85;
 const FIXED_PHYSICS_DT = 1000 / 60;
 /** Velocity is in px per physics step at 60Hz, so 2 ≈ 120px/s. */
 const PLAYER_WALK_SPEED = 2;
-/** Tuned so an unassisted jump reaches roughly `cell * 5`. */
-const PLAYER_JUMP_VELOCITY = 9;
+/** Tuned so an unassisted jump reaches the brick-wall ledge, but not the hero text tier. */
+const PLAYER_JUMP_VELOCITY = 12;
 const PLAYER_FRICTION = 0.8;
 const LANDING_SQUASH_MS = 80;
 const SPAWN_DROP_CELLS = 8;
 /** Player spawns near the left edge of the canvas, not dead-center. */
 const PLAYER_SPAWN_X_CELLS = 4;
+const BRICK_LEDGE_THICKNESS_CELLS = 0.7;
 const WALK_BOB_PERIOD_MS = 220;
 const IDLE_SWAY_PERIOD_MS = 600;
 const PROMPT_BLINK_MS = 600;
@@ -335,6 +336,32 @@ function getBillboardFrameWidth(cell: number): number {
   return Math.max(3, Math.floor(cell * 0.8));
 }
 
+function getBillboardGeometry(width: number, cell: number) {
+  const bbWidth = cell * 13;
+  const bbHeight = cell * 12;
+  const bbX = width - cell * 16;
+  const bbY = cell * 3;
+  const frameWidth = getBillboardFrameWidth(cell);
+  const frameBottom = bbY + bbHeight + frameWidth;
+  const pipeGap = cell * 2;
+  const brickTop = frameBottom + pipeGap;
+  const brickX = bbX - frameWidth;
+  const brickWidth = bbWidth + frameWidth * 2;
+
+  return {
+    bbX,
+    bbY,
+    bbWidth,
+    bbHeight,
+    frameWidth,
+    frameBottom,
+    pipeGap,
+    brickTop,
+    brickX,
+    brickWidth,
+  };
+}
+
 function drawBillboard(
   ctx: CanvasRenderingContext2D,
   origin: { x: number; y: number },
@@ -626,25 +653,25 @@ function drawBackground(
     Math.max(Math.floor(cell * 0.45), 3),
   );
 
-  const bbWidth = cell * 13;
-  const bbHeight = cell * 12;
-  const bbX = width - cell * 16;
-  const bbY = cell * 3;
-  const bbFrameWidth = getBillboardFrameWidth(cell);
-  const bbFrameBottom = bbY + bbHeight + bbFrameWidth;
+  const billboard = getBillboardGeometry(width, cell);
 
   // Support gap — thin strip of pipes separating the billboard frame from the brick below
-  const pipeGap = cell * 2;
-  const brickTop = bbFrameBottom + pipeGap;
-  drawPipes(ctx, bbX, bbWidth, bbFrameBottom, brickTop, cell, palette.pipe);
+  drawPipes(
+    ctx,
+    billboard.bbX,
+    billboard.bbWidth,
+    billboard.frameBottom,
+    billboard.brickTop,
+    cell,
+    palette.pipe,
+  );
 
   // Brick building — the pedestal the billboard sits on, filling the rest of the gap above the street
-  const bbFw = bbFrameWidth;
   drawBrickBuilding(
     ctx,
-    bbX - bbFw,
-    bbWidth + bbFw * 2,
-    brickTop,
+    billboard.brickX,
+    billboard.brickWidth,
+    billboard.brickTop,
     baseline,
     cell,
     palette,
@@ -652,8 +679,8 @@ function drawBackground(
 
   drawBillboard(
     ctx,
-    { x: bbX, y: bbY },
-    { width: bbWidth, height: bbHeight, cell },
+    { x: billboard.bbX, y: billboard.bbY },
+    { width: billboard.bbWidth, height: billboard.bbHeight, cell },
     {
       frame: palette.frame,
       screen: palette.screen,
@@ -758,12 +785,9 @@ function drawClickToPlayPrompt(
   elapsed: number,
   palette: Palette,
 ): ButtonRect {
-  const bbWidth = cell * 13;
-  const bbHeight = cell * 12;
-  const bbX = width - cell * 16;
-  const bbY = cell * 3;
-  const x = bbX + bbWidth / 2;
-  const y = bbY + bbHeight - cell * 1.35;
+  const billboard = getBillboardGeometry(width, cell);
+  const x = billboard.bbX + billboard.bbWidth / 2;
+  const y = billboard.bbY + billboard.bbHeight - cell * 1.35;
 
   ctx.save();
   ctx.font = `${Math.max(8, Math.floor(cell * 0.72))}px 'Press Start 2P', monospace`;
@@ -887,9 +911,7 @@ function computeHeroLayout(
     };
     taglineX +=
       width +
-      (index === taglineChunks.length - 1
-        ? 0
-        : ctx.measureText(' | ').width);
+      (index === taglineChunks.length - 1 ? 0 : ctx.measureText(' | ').width);
     return layout;
   });
 
@@ -1157,7 +1179,9 @@ function drawTaglineSeparators(
     const x =
       left.body.position.x +
       left.width / 2 +
-      (right.body.position.x - right.width / 2 - (left.body.position.x + left.width / 2)) /
+      (right.body.position.x -
+        right.width / 2 -
+        (left.body.position.x + left.width / 2)) /
         2;
     const y = (left.body.position.y + right.body.position.y) / 2;
     ctx.fillText('|', x, y);
@@ -1219,7 +1243,9 @@ export default function HeroGame() {
     let playerBody: Matter.Body | null = null;
     let sidewalkGround: Matter.Body | null = null;
     let roadGround: Matter.Body | null = null;
+    let brickLedge: Matter.Body | null = null;
     let interactiveObjects: InteractiveObject[] = [];
+    const supportContacts = new Set<number>();
     const objectsById = new Map<number, InteractiveObject>();
 
     const cellOf = (h: number) => Math.max(3, Math.floor(h / 28));
@@ -1287,14 +1313,61 @@ export default function HeroGame() {
       Engine.update(engine, dt);
     };
 
-    const isGroundPair = (pair: Matter.Pair) => {
+    const isSupportBody = (body: Matter.Body) =>
+      body === sidewalkGround ||
+      body === roadGround ||
+      body === brickLedge ||
+      objectsById.has(body.id);
+
+    const getPlayerSupportBody = (pair: Matter.Pair) => {
+      if (!playerBody) return null;
       const other =
         pair.bodyA === playerBody
           ? pair.bodyB
           : pair.bodyB === playerBody
             ? pair.bodyA
             : null;
-      return other === sidewalkGround || other === roadGround;
+      if (!other || !isSupportBody(other)) return null;
+
+      const playerBottom = playerBody.bounds.max.y;
+      const supportTop = other.bounds.min.y;
+      const topContactSlop = Math.max(8, cellOf(height) * 0.9);
+      const playerIsAboveSupportCenter =
+        playerBody.position.y < other.position.y ||
+        other === sidewalkGround ||
+        other === roadGround;
+
+      if (
+        playerIsAboveSupportCenter &&
+        playerBottom <= supportTop + topContactSlop
+      ) {
+        return other;
+      }
+
+      return null;
+    };
+
+    const addSupportContact = (pair: Matter.Pair, now: number) => {
+      const support = getPlayerSupportBody(pair);
+      if (!support) return;
+      if (!canJump && playerBody && playerBody.velocity.y >= -0.5) {
+        squashUntil = now + LANDING_SQUASH_MS;
+      }
+      supportContacts.add(support.id);
+      canJump = true;
+    };
+
+    const removeSupportContact = (pair: Matter.Pair) => {
+      if (!playerBody) return;
+      const other =
+        pair.bodyA === playerBody
+          ? pair.bodyB
+          : pair.bodyB === playerBody
+            ? pair.bodyA
+            : null;
+      if (!other || !isSupportBody(other)) return;
+      supportContacts.delete(other.id);
+      canJump = supportContacts.size > 0;
     };
 
     /**
@@ -1335,20 +1408,24 @@ export default function HeroGame() {
     ) => {
       const now = performance.now();
       for (const pair of event.pairs) {
-        if (isGroundPair(pair)) {
-          if (!canJump) squashUntil = now + LANDING_SQUASH_MS;
-          canJump = true;
-        }
+        addSupportContact(pair, now);
         handleObjectImpact(pair.bodyA, pair.bodyB, now);
         handleObjectImpact(pair.bodyB, pair.bodyA, now);
       }
+    };
+
+    const handleCollisionActive = (
+      event: Matter.IEventCollision<Matter.Engine>,
+    ) => {
+      const now = performance.now();
+      for (const pair of event.pairs) addSupportContact(pair, now);
     };
 
     const handleCollisionEnd = (
       event: Matter.IEventCollision<Matter.Engine>,
     ) => {
       for (const pair of event.pairs) {
-        if (isGroundPair(pair)) canJump = false;
+        removeSupportContact(pair);
       }
     };
 
@@ -1361,6 +1438,7 @@ export default function HeroGame() {
 
       if (engine) {
         Events.off(engine, 'collisionStart', handleCollisionStart);
+        Events.off(engine, 'collisionActive', handleCollisionActive);
         Events.off(engine, 'collisionEnd', handleCollisionEnd);
         Composite.clear(engine.world, false);
         Engine.clear(engine);
@@ -1369,7 +1447,9 @@ export default function HeroGame() {
       playerBody = null;
       sidewalkGround = null;
       roadGround = null;
+      brickLedge = null;
       interactiveObjects = [];
+      supportContacts.clear();
       objectsById.clear();
       playerLevel = 'sidewalk';
 
@@ -1403,6 +1483,7 @@ export default function HeroGame() {
               x: playerBody.velocity.x,
               y: -PLAYER_JUMP_VELOCITY,
             });
+            supportContacts.clear();
             canJump = false;
           }
           break;
@@ -1427,6 +1508,9 @@ export default function HeroGame() {
             });
             Body.setVelocity(playerBody, { x: playerBody.velocity.x, y: 0 });
             playerLevel = 'road';
+            supportContacts.clear();
+            supportContacts.add(roadGround.id);
+            canJump = true;
             squashUntil = performance.now() + LANDING_SQUASH_MS;
           }
           break;
@@ -1451,6 +1535,9 @@ export default function HeroGame() {
             });
             Body.setVelocity(playerBody, { x: playerBody.velocity.x, y: 0 });
             playerLevel = 'sidewalk';
+            supportContacts.clear();
+            supportContacts.add(sidewalkGround.id);
+            canJump = true;
             squashUntil = performance.now() + LANDING_SQUASH_MS;
           }
           break;
@@ -1497,6 +1584,11 @@ export default function HeroGame() {
       const playerWidth = cell * 2;
       const playerHeight = cell * 4;
       const { roadDrop } = getStreetLevels(baseline, cell);
+      const billboard = getBillboardGeometry(width, cell);
+      const brickLedgeThickness = Math.max(
+        4,
+        cell * BRICK_LEDGE_THICKNESS_CELLS,
+      );
 
       engine = Engine.create();
 
@@ -1527,6 +1619,13 @@ export default function HeroGame() {
         wallThickness,
         height * 2,
         { isStatic: true },
+      );
+      brickLedge = Bodies.rectangle(
+        billboard.brickX + billboard.brickWidth / 2,
+        billboard.brickTop + brickLedgeThickness / 2,
+        billboard.brickWidth,
+        brickLedgeThickness,
+        { isStatic: true, friction: PLAYER_FRICTION },
       );
 
       playerBody = Bodies.rectangle(
@@ -1569,16 +1668,19 @@ export default function HeroGame() {
         sidewalkGround,
         leftWall,
         rightWall,
+        brickLedge,
         playerBody,
         ...interactiveObjects.map((obj) => obj.body),
       ]);
       Events.on(engine, 'collisionStart', handleCollisionStart);
+      Events.on(engine, 'collisionActive', handleCollisionActive);
       Events.on(engine, 'collisionEnd', handleCollisionEnd);
 
       facing = 'right';
       inputLeft = false;
       inputRight = false;
       canJump = false;
+      supportContacts.clear();
       playerLevel = 'sidewalk';
       roadDropPx = roadDrop;
       sidewalkRestY = baseline - playerHeight / 2;
