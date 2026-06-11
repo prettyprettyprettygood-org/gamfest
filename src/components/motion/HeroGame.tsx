@@ -307,7 +307,7 @@ export default function HeroGame() {
         getBillboardRenderOptions(now),
       );
       if (elevatedLedge) {
-        drawElevatedLedge(ctx, elevatedLedge, cell, palette);
+        drawElevatedLedge(ctx, elevatedLedge, cell, daytime);
       }
       for (const obj of interactiveObjects) {
         drawInteractiveObject(ctx, obj, palette, daytime, cell, now);
@@ -319,6 +319,7 @@ export default function HeroGame() {
           blueRing,
           cell,
           '#4db5ff',
+          daytime,
           blueRingCollected,
           itemSheetRef.current,
           RING_SPRITES.blue,
@@ -329,7 +330,8 @@ export default function HeroGame() {
           ctx,
           redRing,
           cell,
-          '#ff4d5d',
+          '#ff8a3d',
+          daytime,
           redRingCollected,
           itemSheetRef.current,
           RING_SPRITES.red,
@@ -355,7 +357,7 @@ export default function HeroGame() {
       floatingFeedbacks = floatingFeedbacks.filter(
         (feedback) => now - feedback.startedAt < FEEDBACK_MS,
       );
-      drawFeedback(ctx, floatingFeedbacks, width, cell, now);
+      drawFeedback(ctx, floatingFeedbacks, width, height, cell, now);
       drawConfetti(ctx, confetti, width, height);
       drawFinaleBanner(now);
       drawScanlines(ctx, width, height, palette.scanline);
@@ -622,9 +624,9 @@ export default function HeroGame() {
         hasDoubleJump = false;
         doubleJumpAvailable = false;
         hasSlam = true;
-        addFeedback('- Double Jump', 'bad', 0);
-        addFeedback('+ Slam', 'good', cellOf(height) * 1.15);
-        addFeedback("Don't fall!", 'warn', cellOf(height) * 2.3);
+        addFeedback('- Double Jump', 'bad', -cellOf(height) * 1.4);
+        addFeedback('+ Slam', 'good', 0);
+        addFeedback("Don't fall!", 'warn', cellOf(height) * 1.4);
       }
     };
 
@@ -973,11 +975,17 @@ export default function HeroGame() {
         brickLedgeThickness,
         { isStatic: true, friction: PLAYER_FRICTION },
       );
+      const heroLayout = computeHeroLayout(ctx);
+      const elevatedLedgeHeight = Math.max(5, cell * 0.8);
+      const elevatedLedgeClearance = cell * 0.5;
       elevatedLedge = Bodies.rectangle(
         Math.max(cell * 15, width * 0.3),
-        -cell * 1.6,
+        heroLayout.tagline[0].y -
+          playerHeight -
+          elevatedLedgeClearance -
+          elevatedLedgeHeight / 2,
         cell * 13,
-        Math.max(5, cell * 0.8),
+        elevatedLedgeHeight,
         { isStatic: true, friction: PLAYER_FRICTION },
       );
       billboardTop = Bodies.rectangle(
@@ -1029,7 +1037,6 @@ export default function HeroGame() {
       Body.setInertia(playerBody, Infinity);
 
       const playerMass = playerBody.mass;
-      const heroLayout = computeHeroLayout(ctx);
       interactiveObjects = [
         ...heroLayout.tagline.map((layout) =>
           createInteractiveObject(layout, 'tagline', playerMass),
