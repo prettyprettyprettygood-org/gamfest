@@ -27,6 +27,10 @@ const BRICK_LEDGE_THICKNESS_CELLS = 0.7;
 const WALK_BOB_PERIOD_MS = 220;
 const IDLE_SWAY_PERIOD_MS = 600;
 const PROMPT_BLINK_MS = 600;
+const BILLBOARD_GLITCH_MS = 600;
+const BILLBOARD_DELETE_MS_PER_CHAR = 40;
+const BILLBOARD_TYPE_MS_PER_CHAR = 60;
+const BILLBOARD_HIT_COOLDOWN_MS = 900;
 
 // --- Hero mini-game tuning (Phase 2: interactive objects) --------------
 
@@ -331,6 +335,13 @@ const FACE_FRAMES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
 ];
 
 const BILLBOARD_TEXT = 'That happened. It ruled.';
+const BILLBOARD_MESSAGES = [
+  'That happened.\nIt ruled.',
+  'Oh. You did it.\nHurray!',
+  "Not satisfied?\nOkay, let's see...",
+  'The title was\nload-bearing, btw.',
+  'Happy now?\nYou broke everything.',
+];
 
 function getBillboardFrameWidth(cell: number): number {
   return Math.max(3, Math.floor(cell * 0.8));
@@ -371,10 +382,17 @@ function drawBillboard(
   nightGlow = false,
   elapsed = 0,
   showMessage = true,
+  options?: {
+    message?: string;
+    glitching?: boolean;
+    noiseSeed?: number;
+    showControls?: boolean;
+  },
 ) {
   const { x, y } = origin;
   const { width, height, cell } = size;
   const fw = getBillboardFrameWidth(cell);
+  const glitching = options?.glitching ?? false;
 
   ctx.fillStyle = colors.frame;
   ctx.fillRect(x - fw, y - fw, width + fw * 2, height + fw * 2);
@@ -400,26 +418,81 @@ function drawBillboard(
   const px = Math.max(2, Math.floor(width / 10));
   const ox = x + (width - px * 8) / 2;
   const oy = y + Math.floor((height - px * 6) * 0.32);
-  FACE_FRAMES[frame].forEach(([col, row]) => {
-    ctx.fillRect(ox + col * px, oy + row * px, px - 1, px - 1);
-  });
+  if (glitching || frame === 2) {
+    const seedBase = Math.floor((options?.noiseSeed ?? elapsed) / 80);
+    const noiseCount = glitching ? 18 : 14;
+    for (let i = 0; i < noiseCount; i++) {
+      const col = Math.floor(pseudoRandom(seedBase + i * 9.17) * 8);
+      const row = Math.floor(pseudoRandom(seedBase + i * 5.31 + 2) * 6);
+      ctx.globalAlpha = 0.55 + pseudoRandom(seedBase + i * 3.83) * 0.45;
+      ctx.fillRect(ox + col * px, oy + row * px, px - 1, px - 1);
+    }
+    ctx.globalAlpha = 1;
+  } else {
+    FACE_FRAMES[frame].forEach(([col, row]) => {
+      ctx.fillRect(ox + col * px, oy + row * px, px - 1, px - 1);
+    });
+  }
 
   if (showMessage) {
     // Terminal text with blinking underscore cursor
     const cursor = Math.floor(elapsed / 530) % 2 === 0 ? '_' : ' ';
-    const fullText = BILLBOARD_TEXT + cursor;
+    const message = options?.message ?? BILLBOARD_TEXT;
+    const lines = message.split('\n').slice(0, 2);
+    if (lines.length > 0) lines[lines.length - 1] += cursor;
     const maxW = width - cell * 2;
-    let fs = Math.max(8, Math.floor(cell * 1.6));
+    let fs = Math.max(8, Math.floor(cell * 1.35));
     ctx.font = `${fs}px 'VT323', monospace`;
-    while (ctx.measureText(fullText).width > maxW && fs > 8) {
+    while (
+      lines.some((line) => ctx.measureText(line).width > maxW) &&
+      fs > 8
+    ) {
       fs -= 1;
       ctx.font = `${fs}px 'VT323', monospace`;
     }
     ctx.fillStyle = colors.facePixel;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.fillText(fullText, x + width / 2, y + height - Math.floor(cell * 0.5));
+    ctx.textBaseline = 'middle';
+    const lineHeight = fs * 0.95;
+    const startY =
+      y + height - Math.floor(cell * 1.6) - ((lines.length - 1) * lineHeight) / 2;
+    lines.forEach((line, index) => {
+      ctx.fillText(line, x + width / 2, startY + index * lineHeight);
+    });
     ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  if (options?.showControls) {
+    const chip = Math.max(10, cell * 1.25);
+    const chipX = x + width - chip - cell * 0.45;
+    const chipY = y + cell * 0.45;
+    ctx.fillStyle = colors.frame;
+    ctx.fillRect(chipX, chipY, chip, chip);
+    ctx.strokeStyle = colors.glow;
+    ctx.lineWidth = Math.max(1, Math.floor(cell * 0.1));
+    ctx.strokeRect(chipX + 1, chipY + 1, chip - 2, chip - 2);
+    ctx.fillStyle = colors.glow;
+    ctx.font = `${Math.max(8, Math.floor(cell * 0.8))}px 'Press Start 2P', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('?', chipX + chip / 2, chipY + chip / 2 + 1);
+
+    const panelW = Math.min(width * 1.35, cell * 18);
+    const panelH = cell * 6.1;
+    const panelX = Math.max(cell, x - panelW - cell * 0.8);
+    const panelY = y + cell * 1.1;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    ctx.strokeStyle = colors.glow;
+    ctx.strokeRect(panelX + 1, panelY + 1, panelW - 2, panelH - 2);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.font = `${Math.max(7, Math.floor(cell * 0.62))}px 'Press Start 2P', monospace`;
+    const controls = ['A/D  MOVE', 'W/S  CURB', 'SPACE  JUMP', 'ESC  EXIT', 'R  RESET'];
+    controls.forEach((line, index) => {
+      ctx.fillText(line, panelX + cell * 0.65, panelY + cell * 0.6 + index * cell);
+    });
     ctx.textBaseline = 'alphabetic';
   }
 }
@@ -596,6 +669,13 @@ function drawBackground(
   elapsed: number,
   daytime: boolean,
   showBillboardMessage = true,
+  billboardOptions?: {
+    message?: string;
+    glitching?: boolean;
+    noiseSeed?: number;
+    showControls?: boolean;
+    faceFrame?: number;
+  },
 ) {
   ctx.clearRect(0, 0, width, height);
 
@@ -687,10 +767,11 @@ function drawBackground(
       glow: palette.glow,
       facePixel: palette.facePixel,
     },
-    Math.floor(elapsed / 1400) % FACE_FRAMES.length,
+    billboardOptions?.faceFrame ?? Math.floor(elapsed / 1400) % FACE_FRAMES.length,
     !daytime,
     elapsed,
     showBillboardMessage,
+    billboardOptions,
   );
 
   drawStreet(ctx, width, height, baseline, cell, palette, daytime);
@@ -1244,11 +1325,90 @@ export default function HeroGame() {
     let sidewalkGround: Matter.Body | null = null;
     let roadGround: Matter.Body | null = null;
     let brickLedge: Matter.Body | null = null;
+    let billboardHitbox: Matter.Body | null = null;
     let interactiveObjects: InteractiveObject[] = [];
     const supportContacts = new Set<number>();
     const objectsById = new Map<number, InteractiveObject>();
+    let billboardHitCount = 0;
+    let billboardPhase: 'idle' | 'transition' = 'idle';
+    let billboardPhaseStartedAt = 0;
+    let billboardCurrentText = BILLBOARD_MESSAGES[0];
+    let billboardPreviousText = BILLBOARD_MESSAGES[0];
+    let billboardTargetText = BILLBOARD_MESSAGES[0];
+    let billboardFaceFrame = 0;
+    let lastBillboardHitAt = -Infinity;
 
     const cellOf = (h: number) => Math.max(3, Math.floor(h / 28));
+
+    const getBillboardRenderOptions = (now: number) => {
+      if (billboardPhase === 'idle') {
+        return {
+          message: billboardCurrentText,
+          glitching: false,
+          noiseSeed: now,
+          showControls: state === 'active',
+          faceFrame: billboardFaceFrame,
+        };
+      }
+
+      const t = now - billboardPhaseStartedAt;
+      const deletingAt = Math.max(0, t - BILLBOARD_GLITCH_MS);
+      const deleteChars = Math.min(
+        billboardPreviousText.length,
+        Math.floor(deletingAt / BILLBOARD_DELETE_MS_PER_CHAR),
+      );
+      const typingAt =
+        deletingAt - billboardPreviousText.length * BILLBOARD_DELETE_MS_PER_CHAR;
+      const typeChars = Math.max(
+        0,
+        Math.min(
+          billboardTargetText.length,
+          Math.floor(typingAt / BILLBOARD_TYPE_MS_PER_CHAR),
+        ),
+      );
+      const message =
+        deleteChars < billboardPreviousText.length
+          ? billboardPreviousText.slice(0, billboardPreviousText.length - deleteChars)
+          : billboardTargetText.slice(0, typeChars);
+
+      if (
+        deleteChars >= billboardPreviousText.length &&
+        typeChars >= billboardTargetText.length
+      ) {
+        billboardPhase = 'idle';
+        billboardCurrentText = billboardTargetText;
+        billboardFaceFrame =
+          billboardHitCount >= BILLBOARD_MESSAGES.length - 1
+            ? 2
+            : billboardHitCount % FACE_FRAMES.length;
+      }
+
+      return {
+        message,
+        glitching: t < BILLBOARD_GLITCH_MS,
+        noiseSeed: now,
+        showControls: state === 'active',
+        faceFrame:
+          t < BILLBOARD_GLITCH_MS
+            ? 2
+            : billboardHitCount >= BILLBOARD_MESSAGES.length - 1
+              ? 2
+              : billboardHitCount % FACE_FRAMES.length,
+      };
+    };
+
+    const triggerBillboardHit = (now: number) => {
+      if (billboardHitCount >= BILLBOARD_MESSAGES.length - 1) return;
+      if (now - lastBillboardHitAt < BILLBOARD_HIT_COOLDOWN_MS) return;
+
+      billboardHitCount += 1;
+      billboardPreviousText = billboardCurrentText;
+      billboardTargetText = BILLBOARD_MESSAGES[billboardHitCount];
+      billboardPhase = 'transition';
+      billboardPhaseStartedAt = now;
+      lastBillboardHitAt = now;
+      billboardFaceFrame = 2;
+    };
 
     const drawPassiveFrame = () => {
       const cell = cellOf(height);
@@ -1261,7 +1421,16 @@ export default function HeroGame() {
 
     const drawActiveFrame = (now: number) => {
       const cell = cellOf(height);
-      drawBackground(ctx, width, height, palette, elapsed, daytime);
+      drawBackground(
+        ctx,
+        width,
+        height,
+        palette,
+        elapsed,
+        daytime,
+        true,
+        getBillboardRenderOptions(now),
+      );
       for (const obj of interactiveObjects) {
         drawInteractiveObject(ctx, obj, palette, daytime, cell, now);
       }
@@ -1403,12 +1572,28 @@ export default function HeroGame() {
       }
     };
 
+    const handleBillboardImpact = (pair: Matter.Pair, now: number) => {
+      if (!playerBody || !billboardHitbox) return;
+      const hitBillboard =
+        (pair.bodyA === playerBody && pair.bodyB === billboardHitbox) ||
+        (pair.bodyB === playerBody && pair.bodyA === billboardHitbox);
+      if (!hitBillboard) return;
+
+      const cell = cellOf(height);
+      const billboard = getBillboardGeometry(width, cell);
+      const fromBrickLedge =
+        playerBody.position.y > billboard.bbY + billboard.bbHeight * 0.35 &&
+        playerBody.position.y < billboard.brickTop + cell * 2;
+      if (fromBrickLedge) triggerBillboardHit(now);
+    };
+
     const handleCollisionStart = (
       event: Matter.IEventCollision<Matter.Engine>,
     ) => {
       const now = performance.now();
       for (const pair of event.pairs) {
         addSupportContact(pair, now);
+        handleBillboardImpact(pair, now);
         handleObjectImpact(pair.bodyA, pair.bodyB, now);
         handleObjectImpact(pair.bodyB, pair.bodyA, now);
       }
@@ -1448,9 +1633,18 @@ export default function HeroGame() {
       sidewalkGround = null;
       roadGround = null;
       brickLedge = null;
+      billboardHitbox = null;
       interactiveObjects = [];
       supportContacts.clear();
       objectsById.clear();
+      billboardHitCount = 0;
+      billboardPhase = 'idle';
+      billboardPhaseStartedAt = 0;
+      billboardCurrentText = BILLBOARD_MESSAGES[0];
+      billboardPreviousText = BILLBOARD_MESSAGES[0];
+      billboardTargetText = BILLBOARD_MESSAGES[0];
+      billboardFaceFrame = 0;
+      lastBillboardHitAt = -Infinity;
       playerLevel = 'sidewalk';
 
       window.removeEventListener('keydown', onKeyDown);
@@ -1627,6 +1821,17 @@ export default function HeroGame() {
         brickLedgeThickness,
         { isStatic: true, friction: PLAYER_FRICTION },
       );
+      billboardHitbox = Bodies.rectangle(
+        billboard.bbX + billboard.bbWidth / 2,
+        billboard.bbY + billboard.bbHeight / 2,
+        billboard.bbWidth,
+        billboard.bbHeight,
+        {
+          isStatic: true,
+          isSensor: true,
+          label: 'billboard-screen',
+        },
+      );
 
       playerBody = Bodies.rectangle(
         cell * PLAYER_SPAWN_X_CELLS,
@@ -1669,6 +1874,7 @@ export default function HeroGame() {
         leftWall,
         rightWall,
         brickLedge,
+        billboardHitbox,
         playerBody,
         ...interactiveObjects.map((obj) => obj.body),
       ]);
