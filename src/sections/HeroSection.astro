@@ -11,6 +11,134 @@ const isDev = import.meta.env.DEV;
   <div class="hero__canvas-wrap" aria-hidden="true">
     <HeroGame client:load />
   </div>
+  <div class="hero__backdrop" aria-hidden="true">
+    <svg
+      class="hero-skyline"
+      viewBox="0 0 400 160"
+      preserveAspectRatio="xMidYMax slice"
+      focusable="false"
+    >
+      <g class="hero-skyline__stars">
+        <circle cx="30" cy="18" r="1"></circle>
+        <circle cx="75" cy="32" r="1.4"></circle>
+        <circle cx="120" cy="14" r="1"></circle>
+        <circle cx="175" cy="28" r="1.2"></circle>
+        <circle cx="230" cy="16" r="1"></circle>
+        <circle cx="290" cy="30" r="1.4"></circle>
+        <circle cx="345" cy="20" r="1"></circle>
+        <circle cx="380" cy="38" r="1.2"></circle>
+      </g>
+      <!-- Each layer is drawn twice, back to back (0-400 and 400-800), then
+           scrolled left by exactly one tile width on an infinite loop — the
+           seam between the copies is invisible since they're identical. -->
+      <g class="hero-skyline__far-group">
+        <rect class="hero-skyline__far" x="4" y="112" width="44" height="48"
+        ></rect>
+        <rect class="hero-skyline__far" x="66" y="88" width="56" height="72"
+        ></rect>
+        <rect class="hero-skyline__far" x="142" y="104" width="42" height="56"
+        ></rect>
+        <rect class="hero-skyline__far" x="206" y="78" width="62" height="82"
+        ></rect>
+        <rect class="hero-skyline__far" x="292" y="98" width="50" height="62"
+        ></rect>
+        <rect class="hero-skyline__far" x="370" y="118" width="34" height="42"
+        ></rect>
+        <rect class="hero-skyline__far" x="404" y="112" width="44" height="48"
+        ></rect>
+        <rect class="hero-skyline__far" x="466" y="88" width="56" height="72"
+        ></rect>
+        <rect class="hero-skyline__far" x="542" y="104" width="42" height="56"
+        ></rect>
+        <rect class="hero-skyline__far" x="606" y="78" width="62" height="82"
+        ></rect>
+        <rect class="hero-skyline__far" x="692" y="98" width="50" height="62"
+        ></rect>
+        <rect class="hero-skyline__far" x="770" y="118" width="34" height="42"
+        ></rect>
+      </g>
+      <g class="hero-skyline__near-group">
+        <rect class="hero-skyline__near" x="-18" y="96" width="52" height="64"
+        ></rect>
+        <rect class="hero-skyline__near" x="54" y="68" width="60" height="92"
+        ></rect>
+        <rect class="hero-skyline__near" x="136" y="104" width="48" height="56"
+        ></rect>
+        <rect class="hero-skyline__near" x="212" y="74" width="58" height="86"
+        ></rect>
+        <rect class="hero-skyline__near" x="306" y="92" width="54" height="68"
+        ></rect>
+        <rect class="hero-skyline__near" x="382" y="106" width="36" height="54"
+        ></rect>
+        <rect class="hero-skyline__near" x="382" y="96" width="52" height="64"
+        ></rect>
+        <rect class="hero-skyline__near" x="454" y="68" width="60" height="92"
+        ></rect>
+        <rect class="hero-skyline__near" x="536" y="104" width="48" height="56"
+        ></rect>
+        <rect class="hero-skyline__near" x="612" y="74" width="58" height="86"
+        ></rect>
+        <rect class="hero-skyline__near" x="706" y="92" width="54" height="68"
+        ></rect>
+        <rect class="hero-skyline__near" x="782" y="106" width="36" height="54"
+        ></rect>
+        <g class="hero-skyline__window-grid">
+          <rect class="hero-skyline__window" x="72" y="84" width="7" height="7"
+          ></rect>
+          <rect class="hero-skyline__window" x="93" y="103" width="7" height="7"
+          ></rect>
+          <rect
+            class="hero-skyline__window"
+            x="151"
+            y="119"
+            width="7"
+            height="7"></rect>
+          <rect class="hero-skyline__window" x="232" y="91" width="7" height="7"
+          ></rect>
+          <rect
+            class="hero-skyline__window"
+            x="249"
+            y="115"
+            width="7"
+            height="7"></rect>
+          <rect
+            class="hero-skyline__window"
+            x="324"
+            y="111"
+            width="7"
+            height="7"></rect>
+          <rect class="hero-skyline__window" x="472" y="84" width="7" height="7"
+          ></rect>
+          <rect
+            class="hero-skyline__window"
+            x="493"
+            y="103"
+            width="7"
+            height="7"></rect>
+          <rect
+            class="hero-skyline__window"
+            x="551"
+            y="119"
+            width="7"
+            height="7"></rect>
+          <rect class="hero-skyline__window" x="632" y="91" width="7" height="7"
+          ></rect>
+          <rect
+            class="hero-skyline__window"
+            x="649"
+            y="115"
+            width="7"
+            height="7"></rect>
+          <rect
+            class="hero-skyline__window"
+            x="724"
+            y="111"
+            width="7"
+            height="7"></rect>
+        </g>
+      </g>
+    </svg>
+  </div>
   <div class="hero__content">
     <p class="hero__tagline">Games | Art | Music | Fest</p>
     <h1 class="hero__wordmark">
@@ -22,10 +150,17 @@ const isDev = import.meta.env.DEV;
       <Badge variant="magenta">TBD 2027</Badge>
     </div>
     <div class="hero__actions">
-      <Button href={discordUrl} variant="primary">Follow on Discord</Button>
-      <Button href={facebookUrl} variant="secondary">Follow on Facebook</Button>
+      <Button href={discordUrl} variant="primary"
+        ><span class="hero__cta-prefix">Follow on </span>Discord</Button
+      >
+      <Button href={facebookUrl} variant="secondary"
+        ><span class="hero__cta-prefix">Follow on </span>Facebook</Button
+      >
     </div>
   </div>
+  <p class="hero__restore-hint" aria-hidden="true">
+    Press Esc or click outside the hero to restore
+  </p>
   {
     isDev && (
       <button
@@ -62,6 +197,7 @@ const isDev = import.meta.env.DEV;
     position: relative;
     max-width: var(--content-max-width);
     margin-inline: auto;
+    min-height: 22rem;
     overflow: hidden;
   }
 
@@ -69,12 +205,97 @@ const isDev = import.meta.env.DEV;
     display: none;
   }
 
+  /* Mobile stand-in for the canvas scene: a static sky + skyline silhouette
+     so the hero reads as its own "place" even without the game (PRD §8). */
+  .hero__backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-color: var(--hero-sky);
+  }
+
+  /* Scrim: keeps the sky/stars visible up top while darkening the lower
+     portion so the wordmark, badges, and outline buttons stay legible
+     over the skyline regardless of day/night palette. */
+  .hero__backdrop::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 25%,
+      rgb(var(--color-bg-rgb) / 0.7) 55%,
+      rgb(var(--color-bg-rgb) / 0.92) 100%
+    );
+  }
+
+  .hero-skyline {
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform: translateY(0.5rem);
+  }
+
+  /* Slow parallax drift — far layer crawls, near layer (with windows)
+     moves a little faster. Both loop seamlessly via the doubled paths
+     above. Neutralized by the global prefers-reduced-motion rule. */
+  .hero-skyline__far-group {
+    animation: hero-skyline-scroll 140s linear infinite;
+  }
+
+  .hero-skyline__near-group {
+    animation: hero-skyline-scroll 80s linear infinite;
+  }
+
+  @keyframes hero-skyline-scroll {
+    to {
+      transform: translateX(-400px);
+    }
+  }
+
+  .hero-skyline__far {
+    fill: var(--hero-skyline-far);
+    opacity: 0.74;
+  }
+
+  .hero-skyline__near {
+    fill: var(--hero-skyline-near);
+    opacity: 0.9;
+  }
+
+  .hero-skyline__window {
+    fill: var(--hero-window);
+  }
+
+  .hero-skyline__window-grid {
+    opacity: 0.72;
+  }
+
+  .hero-skyline__stars circle {
+    fill: var(--color-fg);
+    opacity: 0.6;
+  }
+
+  /* Stars only make sense against the night sky */
+  :global([data-hero-time='day']) .hero-skyline__stars {
+    display: none;
+  }
+
+  :global([data-hero-time='day']) {
+    --hero-tagline-color: var(--color-hero-day-tagline);
+    --hero-fg: var(--color-hero-day-fg);
+    --hero-fg-muted: var(--color-hero-day-fg-muted);
+  }
+
   .hero__content {
+    position: relative;
+    z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-4);
-    padding-block: var(--space-9);
+    padding-block: var(--space-7) var(--space-8);
     padding-inline: var(--content-padding-inline);
     transition: opacity 0.3s ease;
   }
@@ -84,6 +305,10 @@ const isDev = import.meta.env.DEV;
   .hero[data-game-active='true'] .hero__content {
     opacity: 0;
     pointer-events: none;
+  }
+
+  .hero__restore-hint {
+    display: none;
   }
 
   .hero__tagline {
@@ -120,6 +345,37 @@ const isDev = import.meta.env.DEV;
     flex-wrap: nowrap;
   }
 
+  /* Mobile CTAs: drop the "Follow on" lead-in so the buttons aren't huge */
+  .hero__cta-prefix {
+    display: none;
+  }
+
+  @media (min-width: 48rem) {
+    .hero__cta-prefix {
+      display: inline;
+    }
+  }
+
+  /* Mobile: shrink the badge/button chrome — both were sized for the
+     desktop overlay and felt oversized stacked on a narrow screen — and
+     add breathing room between the badge row and the CTA row (a margin on
+     the row itself, not the gap between items within each row). */
+  @media (max-width: 47.99rem) {
+    .hero__badges :global(.badge) {
+      padding: var(--space-1);
+      font-size: var(--text-2xs);
+    }
+
+    .hero__actions :global(.button) {
+      padding: var(--space-2) var(--space-4);
+      font-size: var(--text-2xs);
+    }
+
+    .hero__actions {
+      margin-top: var(--space-2);
+    }
+  }
+
   /* The HeroCanvas React island renders a <canvas> with this class */
   :global(.hero-canvas) {
     display: block;
@@ -128,14 +384,8 @@ const isDev = import.meta.env.DEV;
     background-color: var(--color-bg-raised);
   }
 
-  /* Day-mode palette overrides — only at ≥ 48rem where the canvas sky is visible */
+  /* Day-mode canvas polish — only at ≥ 48rem where the canvas sky is visible */
   @media (min-width: 48rem) {
-    :global([data-hero-time='day']) {
-      --hero-tagline-color: var(--color-hero-day-tagline);
-      --hero-fg: var(--color-hero-day-fg);
-      --hero-fg-muted: var(--color-hero-day-fg-muted);
-    }
-
     /* Subtle scrim — kept light so the canvas/sprites behind stay visible */
     :global([data-hero-time='day']) .hero__content {
       background: linear-gradient(
@@ -188,6 +438,10 @@ const isDev = import.meta.env.DEV;
       z-index: 0;
     }
 
+    .hero__backdrop {
+      display: none;
+    }
+
     .hero__content {
       position: absolute;
       inset-block: 0;
@@ -196,6 +450,35 @@ const isDev = import.meta.env.DEV;
       justify-content: flex-start;
       padding: var(--space-7) var(--space-8);
       z-index: 1;
+    }
+
+    .hero__restore-hint {
+      position: absolute;
+      right: var(--space-4);
+      bottom: var(--space-3);
+      z-index: 2;
+      display: block;
+      max-width: min(24rem, calc(100% - var(--space-8)));
+      padding: var(--space-2) var(--space-3);
+      background-color: rgb(var(--color-bg-rgb) / 0.72);
+      color: var(--color-fg-muted);
+      border: var(--border-width) solid rgb(var(--color-green-rgb) / 0.55);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
+      line-height: var(--leading-snug);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(0.25rem);
+      transition:
+        opacity 0.18s ease-out,
+        transform 0.18s ease-out;
+    }
+
+    .hero[data-game-active='true'] .hero__restore-hint {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     .hero__wordmark {

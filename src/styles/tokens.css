@@ -38,6 +38,17 @@
   --color-hero-day-fg: #1a2030;
   --color-hero-day-fg-muted: #384858;
   --color-hero-day-sky: #87ceeb;
+  --color-hero-day-skyline-far: #b8cdd8;
+  --color-hero-day-skyline-near: #8aa4b0;
+  --color-hero-day-window: #cce0f4;
+
+  /* Hero mobile backdrop (sky + skyline silhouette) — shown below 48rem in
+     place of the canvas scene. Defaults mirror the canvas night palette;
+     [data-hero-time="day"] below swaps in the day palette at any viewport. */
+  --hero-sky: var(--color-bg);
+  --hero-skyline-far: var(--color-bg-raised);
+  --hero-skyline-near: var(--color-border);
+  --hero-window: var(--color-amber);
 
   /* Color — secondary retro accents, used sparingly for highlights/badges */
   --color-amber: #ffb347;
@@ -74,6 +85,7 @@
 
   /* Type scale — mobile-first; Section/heading components apply the
      responsive step-up at larger viewports via these same tokens */
+  --text-2xs: 0.625rem; /* 10px — ultra-compact UI: mobile hero badges/CTAs */
   --text-xs: 0.75rem; /* 12px — fine print, badges */
   --text-sm: 0.875rem; /* 14px — captions, labels */
   --text-base: 1rem; /* 16px — body copy */
@@ -154,4 +166,14 @@
   :root {
     --content-padding-inline: var(--space-6);
   }
+}
+
+/* Day palette for the mobile hero backdrop — applies at any viewport since
+   `data-hero-time` is set on <html> regardless of size; only consumed
+   below 48rem where the backdrop is visible. */
+[data-hero-time='day'] {
+  --hero-sky: var(--color-hero-day-sky);
+  --hero-skyline-far: var(--color-hero-day-skyline-far);
+  --hero-skyline-near: var(--color-hero-day-skyline-near);
+  --hero-window: var(--color-hero-day-window);
 }

@@ -10,6 +10,8 @@ const SPRITE_SIZE = 32;
 
 // --- Hero mini-game tuning (Phase 1: core platformer) -----------------
 
+/** Ground line as a fraction of canvas height — shared by background art and physics. */
+const HERO_BASELINE_RATIO = 0.85;
 /** Physics steps run at a fixed 60Hz regardless of render FPS. */
 const FIXED_PHYSICS_DT = 1000 / 60;
 /** Velocity is in px per physics step at 60Hz, so 2 ≈ 120px/s. */
@@ -25,6 +27,18 @@ const WALK_BOB_PERIOD_MS = 220;
 const IDLE_SWAY_PERIOD_MS = 600;
 const PROMPT_BLINK_MS = 600;
 
+// --- Hero mini-game tuning (Phase 2: interactive objects) --------------
+
+/** Bounce for buttons/badges/letters once they fall — "moderate" per PRD. */
+const OBJECT_RESTITUTION = 0.3;
+/** How long the "damaged" shake/crack animation plays after a hit. */
+const DAMAGE_SHAKE_MS = 300;
+/** Small spin imparted to objects when they start falling, so stacks tumble unevenly. */
+const FALL_ANGULAR_VELOCITY = 0.15;
+/** Buttons are heavier than badges, per PRD "Difficulty Tuning" — both relative to player mass. */
+const BUTTON_MASS_MULTIPLIER = 4;
+const BADGE_MASS_MULTIPLIER = 1;
+
 interface Palette {
   sky: string;
   skylineFar: string;
@@ -32,6 +46,8 @@ interface Palette {
   screen: string;
   frame: string;
   glow: string;
+  accentAmber: string;
+  accentMagenta: string;
   facePixel: string;
   scanline: string;
   brickA: string;
@@ -74,6 +90,8 @@ function getPalette(daytime: boolean): Palette {
       screen: '#f8f8f8',
       frame: '#1a1a1a',
       glow: '#22cc04',
+      accentAmber: '#ffb347',
+      accentMagenta: '#ff4fd8',
       facePixel: '#1a5028',
       scanline: 'rgb(0 0 0 / 3%)',
       brickA: '#b05030',
@@ -95,6 +113,8 @@ function getPalette(daytime: boolean): Palette {
     screen: '#060e06',
     frame: '#1e2026',
     glow: '#39ff14',
+    accentAmber: '#ffb347',
+    accentMagenta: '#ff4fd8',
     facePixel: '#39ff14',
     scanline: 'rgb(255 255 255 / 4%)',
     brickA: '#1c1a1a',
@@ -126,9 +146,8 @@ function hexToRgba(hex: string, alpha: number): string {
 /** Sidewalk/road geometry shared between background art and player physics. */
 function getStreetLevels(baseline: number, cell: number) {
   const sidewalkH = Math.round(cell);
-  const curbH = Math.max(2, Math.round(cell * 0.35));
-  const roadTop = baseline + sidewalkH + curbH;
-  return { sidewalkH, curbH, roadTop, roadDrop: sidewalkH + curbH };
+  const roadTop = baseline + sidewalkH;
+  return { sidewalkH, roadTop, roadDrop: sidewalkH };
 }
 
 // Fixed star field — stable positions on the right half of the canvas (clear of text overlay)
@@ -236,9 +255,11 @@ function drawSkyline(
   cell = 3,
   litProb = 0.45,
   elapsed = 0,
+  gap = 0,
 ) {
   const count = Math.ceil(width / step) + 2;
   const baseCol = Math.floor(offset / step);
+  const buildingWidth = Math.max(cell * 3, step - gap);
 
   for (let i = -1; i < count; i++) {
     const x = i * step - (offset % step);
@@ -260,10 +281,7 @@ function drawSkyline(
     const bx = Math.round(x);
     const bt = Math.round(baseline - h);
     ctx.fillStyle = color;
-    ctx.fillRect(bx, bt, step + 1, bottom - bt);
-    // Shadow strip at right edge — simulates an alley without exposing background
-    ctx.fillStyle = 'rgb(0 0 0 / 0.18)';
-    ctx.fillRect(bx + step - 2, bt, 3, bottom - bt);
+    ctx.fillRect(bx, bt, Math.ceil(buildingWidth), bottom - bt);
 
     if (windowLit && windowDark) {
       drawBuildingWindows(
@@ -271,7 +289,7 @@ function drawSkyline(
         bx,
         bt,
         bottom,
-        step + 1,
+        Math.ceil(buildingWidth),
         cell,
         worldCol * 73 + seed * 1000,
         windowLit,
@@ -313,6 +331,10 @@ const FACE_FRAMES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
 
 const BILLBOARD_TEXT = 'That happened. It ruled.';
 
+function getBillboardFrameWidth(cell: number): number {
+  return Math.max(3, Math.floor(cell * 0.8));
+}
+
 function drawBillboard(
   ctx: CanvasRenderingContext2D,
   origin: { x: number; y: number },
@@ -321,13 +343,14 @@ function drawBillboard(
   frame: number,
   nightGlow = false,
   elapsed = 0,
+  showMessage = true,
 ) {
   const { x, y } = origin;
   const { width, height, cell } = size;
-  const fw = cell * 1.5;
+  const fw = getBillboardFrameWidth(cell);
 
   ctx.fillStyle = colors.frame;
-  ctx.fillRect(x - fw, y - cell, width + fw * 2, height + cell * 2);
+  ctx.fillRect(x - fw, y - fw, width + fw * 2, height + fw * 2);
 
   ctx.fillStyle = colors.screen;
   ctx.fillRect(x, y, width, height);
@@ -354,22 +377,24 @@ function drawBillboard(
     ctx.fillRect(ox + col * px, oy + row * px, px - 1, px - 1);
   });
 
-  // Terminal text with blinking underscore cursor
-  const cursor = Math.floor(elapsed / 530) % 2 === 0 ? '_' : ' ';
-  const fullText = BILLBOARD_TEXT + cursor;
-  const maxW = width - cell * 2;
-  let fs = Math.max(8, Math.floor(cell * 1.6));
-  ctx.font = `${fs}px 'VT323', monospace`;
-  while (ctx.measureText(fullText).width > maxW && fs > 8) {
-    fs -= 1;
+  if (showMessage) {
+    // Terminal text with blinking underscore cursor
+    const cursor = Math.floor(elapsed / 530) % 2 === 0 ? '_' : ' ';
+    const fullText = BILLBOARD_TEXT + cursor;
+    const maxW = width - cell * 2;
+    let fs = Math.max(8, Math.floor(cell * 1.6));
     ctx.font = `${fs}px 'VT323', monospace`;
+    while (ctx.measureText(fullText).width > maxW && fs > 8) {
+      fs -= 1;
+      ctx.font = `${fs}px 'VT323', monospace`;
+    }
+    ctx.fillStyle = colors.facePixel;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(fullText, x + width / 2, y + height - Math.floor(cell * 0.5));
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
   }
-  ctx.fillStyle = colors.facePixel;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'bottom';
-  ctx.fillText(fullText, x + width / 2, y + height - Math.floor(cell * 0.5));
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
 }
 
 function drawPipes(
@@ -440,10 +465,9 @@ function drawStreet(
   baseline: number,
   cell: number,
   palette: Palette,
-  elapsed: number,
   daytime: boolean,
 ) {
-  const { sidewalkH, curbH, roadTop } = getStreetLevels(baseline, cell);
+  const { sidewalkH, roadTop } = getStreetLevels(baseline, cell);
 
   // Sidewalk slab
   ctx.fillStyle = palette.sidewalk;
@@ -457,25 +481,9 @@ function drawStreet(
     ctx.fillRect(Math.round(tx), baseline, 1, sidewalkH);
   }
 
-  // Curb face
-  ctx.fillStyle = palette.curb;
-  ctx.fillRect(0, baseline + sidewalkH, width, curbH);
-
-  // Road
+  // Road starts immediately below the single sidewalk row.
   ctx.fillStyle = palette.road;
   ctx.fillRect(0, roadTop, width, height - roadTop);
-
-  // Scrolling center dashes
-  const dashW = cell * 3;
-  const dashGap = cell * 2;
-  const cycle = dashW + dashGap;
-  const dashY = roadTop + Math.floor((height - roadTop) * 0.42);
-  const dashH = Math.max(1, Math.round(cell * 0.18));
-  const dashOffset = (elapsed * 0.018) % cycle;
-  ctx.fillStyle = daytime ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,160,0.45)';
-  for (let dx = -cycle + dashOffset; dx < width + cycle; dx += cycle) {
-    ctx.fillRect(Math.round(dx), dashY, dashW, dashH);
-  }
 
   // Night: neon-green reflection pooling on the sidewalk near the billboard
   if (!daytime) {
@@ -560,13 +568,14 @@ function drawBackground(
   palette: Palette,
   elapsed: number,
   daytime: boolean,
+  showBillboardMessage = true,
 ) {
   ctx.clearRect(0, 0, width, height);
 
   ctx.fillStyle = palette.sky;
   ctx.fillRect(0, 0, width, height);
 
-  const baseline = height * 0.8;
+  const baseline = height * HERO_BASELINE_RATIO;
   const cell = Math.max(3, Math.floor(height / 28));
 
   // Stars in the sky — night only, drawn before buildings
@@ -590,6 +599,12 @@ function drawBackground(
     height * 0.68,
     11,
     height,
+    undefined,
+    undefined,
+    cell,
+    0.45,
+    elapsed,
+    Math.max(cell, 6),
   );
   // Near skyline — with windows, wide range: short squat blocks to tall towers
   drawSkyline(
@@ -599,8 +614,8 @@ function drawBackground(
     elapsed * 0.03,
     palette.skylineNear,
     cell * 5,
-    height * 0.03,
-    height * 0.5,
+    height * 0.08,
+    height * 0.58,
     47,
     height,
     palette.windowLit,
@@ -608,13 +623,15 @@ function drawBackground(
     cell,
     0.06,
     elapsed,
+    Math.max(Math.floor(cell * 0.45), 3),
   );
 
   const bbWidth = cell * 13;
   const bbHeight = cell * 12;
   const bbX = width - cell * 16;
   const bbY = cell * 3;
-  const bbFrameBottom = bbY + bbHeight + cell;
+  const bbFrameWidth = getBillboardFrameWidth(cell);
+  const bbFrameBottom = bbY + bbHeight + bbFrameWidth;
 
   // Support gap — thin strip of pipes separating the billboard frame from the brick below
   const pipeGap = cell * 2;
@@ -622,7 +639,7 @@ function drawBackground(
   drawPipes(ctx, bbX, bbWidth, bbFrameBottom, brickTop, cell, palette.pipe);
 
   // Brick building — the pedestal the billboard sits on, filling the rest of the gap above the street
-  const bbFw = cell * 1.5;
+  const bbFw = bbFrameWidth;
   drawBrickBuilding(
     ctx,
     bbX - bbFw,
@@ -646,9 +663,10 @@ function drawBackground(
     Math.floor(elapsed / 1400) % FACE_FRAMES.length,
     !daytime,
     elapsed,
+    showBillboardMessage,
   );
 
-  drawStreet(ctx, width, height, baseline, cell, palette, elapsed, daytime);
+  drawStreet(ctx, width, height, baseline, cell, palette, daytime);
 }
 
 interface SpriteDrawState {
@@ -720,7 +738,7 @@ function drawSprite(
   ctx.restore();
 }
 
-const PROMPT_TEXT = '[ CLICK TO PLAY ]';
+const PROMPT_TEXT = 'CLICK TO PLAY';
 
 interface ButtonRect {
   x: number;
@@ -730,33 +748,31 @@ interface ButtonRect {
 }
 
 /**
- * Draws a button-like prompt (steady frame, blinking label) over the visible
- * (non-overlay) part of the canvas, and returns its bounds so clicks can be
- * restricted to the button area.
+ * Draws the passive play prompt on the billboard screen. The whole canvas is
+ * clickable; the returned bounds only support a pointer cursor over the text.
  */
 function drawClickToPlayPrompt(
   ctx: CanvasRenderingContext2D,
   width: number,
-  height: number,
   cell: number,
   elapsed: number,
   palette: Palette,
 ): ButtonRect {
-  // Centered under the billboard/brick building from drawBackground
-  // (bbX = width - cell*16, bbWidth = cell*13 → center = width - cell*9.5).
-  const x = width - cell * 9.5;
-  // Street band (below the baseline at height*0.8) — the only consistently
-  // open strip in the visible game area; the billboard/skyline fill the rest.
-  const y = height * 0.9;
+  const bbWidth = cell * 13;
+  const bbHeight = cell * 12;
+  const bbX = width - cell * 16;
+  const bbY = cell * 3;
+  const x = bbX + bbWidth / 2;
+  const y = bbY + bbHeight - cell * 1.35;
 
   ctx.save();
-  ctx.font = `${Math.max(10, Math.floor(cell * 0.85))}px 'Press Start 2P', monospace`;
+  ctx.font = `${Math.max(8, Math.floor(cell * 0.72))}px 'Press Start 2P', monospace`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  const padX = cell * 0.8;
-  const padY = cell * 0.6;
-  const fontSize = Math.max(10, Math.floor(cell * 0.85));
+  const padX = cell * 0.55;
+  const padY = cell * 0.45;
+  const fontSize = Math.max(8, Math.floor(cell * 0.72));
   const textWidth = ctx.measureText(PROMPT_TEXT).width;
   const box: ButtonRect = {
     x: x - textWidth / 2 - padX,
@@ -765,9 +781,9 @@ function drawClickToPlayPrompt(
     height: fontSize + padY * 2,
   };
 
-  ctx.fillStyle = hexToRgba(palette.frame, 0.75);
+  ctx.fillStyle = hexToRgba(palette.frame, 0.68);
   ctx.fillRect(box.x, box.y, box.width, box.height);
-  ctx.lineWidth = 2;
+  ctx.lineWidth = Math.max(1, Math.floor(cell * 0.1));
   ctx.strokeStyle = palette.glow;
   ctx.strokeRect(box.x + 1, box.y + 1, box.width - 2, box.height - 2);
 
@@ -777,6 +793,377 @@ function drawClickToPlayPrompt(
   }
   ctx.restore();
   return box;
+}
+
+// --- Interactive objects: CTA buttons & badges (Phase 2) ---------------
+
+type ObjectVariant =
+  | 'primary'
+  | 'secondary'
+  | 'green'
+  | 'amber'
+  | 'magenta'
+  | 'wordmark'
+  | 'wordmarkAccent'
+  | 'tagline';
+
+/**
+ * `pinned` → `damaged` → `fallen` per PRD "Interactive Objects → 1, 2".
+ * `fallen` covers both the falling and settled-"obstacle" states — both are
+ * the same dynamic body, just at different points in its physics journey.
+ */
+type ObjectState = 'pinned' | 'damaged' | 'fallen';
+
+interface InteractiveObject {
+  body: Matter.Body;
+  kind: 'button' | 'badge' | 'wordmark' | 'tagline';
+  variant: ObjectVariant;
+  label: string;
+  width: number;
+  height: number;
+  state: ObjectState;
+  destructible: boolean;
+  /** `performance.now()` of the last state change — drives the damage shake. */
+  hitAt: number;
+}
+
+interface ObjectLayout {
+  text: string;
+  variant: ObjectVariant;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface HeroLayout {
+  tagline: ObjectLayout[];
+  wordmark: ObjectLayout[];
+  badges: ObjectLayout[];
+  buttons: ObjectLayout[];
+}
+
+const BADGE_DEFS: ReadonlyArray<{ text: string; variant: ObjectVariant }> = [
+  { text: 'FREE', variant: 'green' },
+  { text: 'IRL', variant: 'amber' },
+  { text: 'TBD 2027', variant: 'magenta' },
+];
+
+const BUTTON_DEFS: ReadonlyArray<{ text: string; variant: ObjectVariant }> = [
+  { text: 'FOLLOW ON DISCORD', variant: 'primary' },
+  { text: 'FOLLOW ON FACEBOOK', variant: 'secondary' },
+];
+
+/**
+ * Lays out the badge row and CTA button row in a left-aligned column,
+ * mirroring `.hero__badges` / `.hero__actions` from the passive layout (see
+ * PRD "Game World Layout" — badges at `y ≈ cell*6`, buttons at `y ≈ cell*10`).
+ * Sizes are measured from the same pixel font the objects are drawn with, so
+ * physics bodies match their visuals exactly.
+ */
+function computeHeroLayout(
+  ctx: CanvasRenderingContext2D,
+  cell: number,
+): HeroLayout {
+  const marginX = Math.max(cell * 2.7, 48);
+  const rowGap = Math.max(cell * 0.8, 16);
+
+  const taglineFont = Math.max(12, Math.floor(cell * 0.72));
+  const taglinePadX = Math.max(2, cell * 0.12);
+  const taglineHeight = taglineFont * 1.35;
+  const taglineY = Math.max(cell * 2.15, 42);
+  const taglineChunks = ['GAMES', 'ART', 'MUSIC', 'FEST'];
+  ctx.font = `700 ${taglineFont}px ui-monospace, 'SF Mono', Menlo, Consolas, monospace`;
+  let taglineX = marginX;
+  const tagline = taglineChunks.map((text, index) => {
+    const width = ctx.measureText(text).width + taglinePadX * 2;
+    const layout: ObjectLayout = {
+      text,
+      variant: 'tagline',
+      x: taglineX,
+      y: taglineY,
+      width,
+      height: taglineHeight,
+    };
+    taglineX +=
+      width +
+      (index === taglineChunks.length - 1
+        ? 0
+        : ctx.measureText(' | ').width);
+    return layout;
+  });
+
+  const wordmarkFont = Math.max(44, Math.floor(cell * 3.4));
+  const wordmarkY = taglineY + taglineHeight + Math.max(cell * 0.45, 8);
+  const wordmarkChars = Array.from('GAM[fest]');
+  ctx.font = `${wordmarkFont}px 'VT323', monospace`;
+  let wordmarkX = marginX;
+  const wordmark = wordmarkChars.map((text, index) => {
+    const isAccent = index >= 3;
+    const padX = isAccent ? wordmarkFont * 0.07 : 0;
+    const width = ctx.measureText(text).width + padX * 2;
+    const layout: ObjectLayout = {
+      text,
+      variant: isAccent ? 'wordmarkAccent' : 'wordmark',
+      x: wordmarkX,
+      y: wordmarkY,
+      width,
+      height: wordmarkFont * 0.98,
+    };
+    wordmarkX += width;
+    return layout;
+  });
+
+  const badgeFont = Math.max(8, Math.floor(cell * 0.8));
+  const badgePadX = cell * 0.5;
+  const badgePadY = cell * 0.35;
+  const badgeGap = cell * 0.6;
+  const badgeY = wordmarkY + wordmarkFont * 0.98 + rowGap;
+
+  ctx.font = `${badgeFont}px 'Press Start 2P', monospace`;
+  let badgeX = marginX;
+  const badges = BADGE_DEFS.map(({ text, variant }) => {
+    const width = ctx.measureText(text).width + badgePadX * 2;
+    const height = badgeFont + badgePadY * 2;
+    const layout: ObjectLayout = {
+      text,
+      variant,
+      x: badgeX,
+      y: badgeY,
+      width,
+      height,
+    };
+    badgeX += width + badgeGap;
+    return layout;
+  });
+
+  const buttonFont = Math.max(9, Math.floor(cell * 0.9));
+  const buttonPadX = cell * 1.2;
+  const buttonPadY = cell * 0.7;
+  const buttonGap = cell * 0.8;
+  const buttonY = badgeY + badgeFont + badgePadY * 2 + rowGap;
+
+  ctx.font = `${buttonFont}px 'Press Start 2P', monospace`;
+  let buttonX = marginX;
+  const buttons = BUTTON_DEFS.map(({ text, variant }) => {
+    const width = ctx.measureText(text).width + buttonPadX * 2;
+    const height = buttonFont + buttonPadY * 2;
+    const layout: ObjectLayout = {
+      text,
+      variant,
+      x: buttonX,
+      y: buttonY,
+      width,
+      height,
+    };
+    buttonX += width + buttonGap;
+    return layout;
+  });
+
+  return { tagline, wordmark, badges, buttons };
+}
+
+/**
+ * Creates a body that starts dynamic (so `restitution`/`mass` apply
+ * normally), then pins it static. `Body.setStatic` caches these as the
+ * "original" values and restores them when a hit later flips the body back
+ * to dynamic — setting them in this order is what makes that restore work.
+ */
+function createPinnedBody(layout: ObjectLayout, mass: number): Matter.Body {
+  const body = Bodies.rectangle(
+    layout.x + layout.width / 2,
+    layout.y + layout.height / 2,
+    layout.width,
+    layout.height,
+    { friction: PLAYER_FRICTION, restitution: OBJECT_RESTITUTION },
+  );
+  Body.setMass(body, mass);
+  Body.setStatic(body, true);
+  return body;
+}
+
+function createInteractiveObject(
+  layout: ObjectLayout,
+  kind: InteractiveObject['kind'],
+  mass: number,
+  destructible = kind === 'button' || kind === 'badge',
+): InteractiveObject {
+  return {
+    body: createPinnedBody(layout, mass),
+    kind,
+    variant: layout.variant,
+    label: layout.text,
+    width: layout.width,
+    height: layout.height,
+    state: 'pinned',
+    destructible,
+    hitAt: 0,
+  };
+}
+
+function getAccentColor(variant: ObjectVariant, palette: Palette): string {
+  switch (variant) {
+    case 'amber':
+    case 'secondary':
+      return palette.accentAmber;
+    case 'magenta':
+      return palette.accentMagenta;
+    default:
+      return palette.glow;
+  }
+}
+
+/** Small jagged crack drawn over a `damaged` button/badge. */
+function drawCrack(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  cell: number,
+  daytime: boolean,
+) {
+  ctx.strokeStyle = daytime
+    ? 'rgba(0, 0, 0, 0.45)'
+    : 'rgba(255, 255, 255, 0.5)';
+  ctx.lineWidth = Math.max(1, Math.round(cell * 0.08));
+  ctx.beginPath();
+  ctx.moveTo(-width * 0.1, -height / 2);
+  ctx.lineTo(width * 0.05, -height * 0.1);
+  ctx.lineTo(-width * 0.08, height * 0.15);
+  ctx.lineTo(width * 0.1, height / 2);
+  ctx.stroke();
+}
+
+/**
+ * Draws a CTA button or badge at its physics body's current position/angle.
+ * `damaged` objects jitter briefly and show a crack; `fallen` objects render
+ * the same way but follow the body's rotation as they tumble and settle.
+ */
+function drawInteractiveObject(
+  ctx: CanvasRenderingContext2D,
+  obj: InteractiveObject,
+  palette: Palette,
+  daytime: boolean,
+  cell: number,
+  now: number,
+) {
+  const { body, width, height, variant, label, state, hitAt } = obj;
+  const { y } = body.position;
+  let { x } = body.position;
+
+  if (state === 'damaged') {
+    const t = now - hitAt;
+    if (t < DAMAGE_SHAKE_MS) {
+      const decay = 1 - t / DAMAGE_SHAKE_MS;
+      x += Math.sin(t * 0.09) * cell * 0.15 * decay;
+    }
+  }
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(body.angle);
+
+  if (obj.kind === 'wordmark') {
+    const fontSize = Math.max(44, Math.floor(cell * 3.4));
+    ctx.font = `${fontSize}px 'VT323', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (variant === 'wordmarkAccent') {
+      ctx.fillStyle = palette.glow;
+      ctx.fillRect(-width / 2, -height / 2, width, height);
+      ctx.fillStyle = palette.frame;
+    } else {
+      ctx.fillStyle = daytime ? '#1a2030' : '#f4efe6';
+    }
+    ctx.fillText(label, 0, 1);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+    return;
+  }
+
+  if (obj.kind === 'tagline') {
+    const fontSize = Math.max(12, Math.floor(cell * 0.72));
+    ctx.font = `700 ${fontSize}px ui-monospace, 'SF Mono', Menlo, Consolas, monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = daytime ? '#0d7a32' : '#8fe39a';
+    ctx.fillText(label, 0, 0);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+    return;
+  }
+
+  if (obj.kind === 'button' && variant === 'primary') {
+    ctx.fillStyle = palette.glow;
+    ctx.fillRect(-width / 2, -height / 2, width, height);
+    ctx.fillStyle = palette.frame;
+  } else {
+    const accent = getAccentColor(variant, palette);
+    if (daytime) {
+      ctx.fillStyle = hexToRgba(palette.frame, 0.8);
+      ctx.fillRect(-width / 2, -height / 2, width, height);
+    }
+    const lineWidth = Math.max(1, Math.round(cell * 0.12));
+    ctx.lineWidth = lineWidth;
+    ctx.strokeStyle = accent;
+    ctx.strokeRect(
+      -width / 2 + lineWidth / 2,
+      -height / 2 + lineWidth / 2,
+      width - lineWidth,
+      height - lineWidth,
+    );
+    ctx.fillStyle = accent;
+  }
+
+  const fontSize =
+    obj.kind === 'button'
+      ? Math.max(9, Math.floor(cell * 0.9))
+      : Math.max(8, Math.floor(cell * 0.8));
+  ctx.font = `${fontSize}px 'Press Start 2P', monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, 0, 0);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+
+  if (state === 'damaged') {
+    drawCrack(ctx, width, height, cell, daytime);
+  }
+
+  ctx.restore();
+}
+
+function drawTaglineSeparators(
+  ctx: CanvasRenderingContext2D,
+  objects: InteractiveObject[],
+  daytime: boolean,
+  cell: number,
+) {
+  const chunks = objects.filter((obj) => obj.kind === 'tagline');
+  if (chunks.length < 2) return;
+
+  ctx.save();
+  const fontSize = Math.max(12, Math.floor(cell * 0.72));
+  ctx.font = `700 ${fontSize}px ui-monospace, 'SF Mono', Menlo, Consolas, monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = daytime ? '#0d7a32' : '#8fe39a';
+
+  for (let i = 0; i < chunks.length - 1; i++) {
+    const left = chunks[i];
+    const right = chunks[i + 1];
+    const x =
+      left.body.position.x +
+      left.width / 2 +
+      (right.body.position.x - right.width / 2 - (left.body.position.x + left.width / 2)) /
+        2;
+    const y = (left.body.position.y + right.body.position.y) / 2;
+    ctx.fillText('|', x, y);
+  }
+
+  ctx.restore();
 }
 
 type GameState = 'passive' | 'active';
@@ -804,6 +1191,7 @@ export default function HeroGame() {
     if (!ctx) return undefined;
 
     const heroEl = canvas.closest<HTMLElement>('.hero');
+    const heroContentEl = heroEl?.querySelector<HTMLElement>('.hero__content');
 
     const daytime = isESTDaytime();
     const palette = getPalette(daytime);
@@ -826,34 +1214,32 @@ export default function HeroGame() {
     let playerLevel: 'sidewalk' | 'road' = 'sidewalk';
     let roadDropPx = 0;
     let sidewalkRestY = 0;
-    let promptButtonRect: ButtonRect | null = null;
 
     let engine: Matter.Engine | null = null;
     let playerBody: Matter.Body | null = null;
     let sidewalkGround: Matter.Body | null = null;
     let roadGround: Matter.Body | null = null;
+    let interactiveObjects: InteractiveObject[] = [];
+    const objectsById = new Map<number, InteractiveObject>();
 
     const cellOf = (h: number) => Math.max(3, Math.floor(h / 28));
 
     const drawPassiveFrame = () => {
       const cell = cellOf(height);
-      drawBackground(ctx, width, height, palette, elapsed, daytime);
+      drawBackground(ctx, width, height, palette, elapsed, daytime, false);
       drawScanlines(ctx, width, height, palette.scanline);
       if (!prefersReducedMotion) {
-        promptButtonRect = drawClickToPlayPrompt(
-          ctx,
-          width,
-          height,
-          cell,
-          elapsed,
-          palette,
-        );
+        drawClickToPlayPrompt(ctx, width, cell, elapsed, palette);
       }
     };
 
     const drawActiveFrame = (now: number) => {
       const cell = cellOf(height);
       drawBackground(ctx, width, height, palette, elapsed, daytime);
+      for (const obj of interactiveObjects) {
+        drawInteractiveObject(ctx, obj, palette, daytime, cell, now);
+      }
+      drawTaglineSeparators(ctx, interactiveObjects, daytime, cell);
       if (spriteRef.current && playerBody) {
         const playerHeight = cell * 4;
         drawSprite(
@@ -911,13 +1297,50 @@ export default function HeroGame() {
       return other === sidewalkGround || other === roadGround;
     };
 
+    /**
+     * Advances `target`'s state machine when struck by the player or by
+     * another already-falling object (cascade — PRD "Interactive Objects →
+     * 1, Cascade"). `pinned` → `damaged` on first hit, `damaged` → `fallen`
+     * (dynamic, gravity takes over) on the second.
+     */
+    const handleObjectImpact = (
+      impactor: Matter.Body,
+      target: Matter.Body,
+      now: number,
+    ) => {
+      const obj = objectsById.get(target.id);
+      if (!obj || !obj.destructible || obj.state === 'fallen') return;
+
+      const isPlayerImpact = impactor === playerBody;
+      const isCascadeImpact =
+        !impactor.isStatic && objectsById.has(impactor.id);
+      if (!isPlayerImpact && !isCascadeImpact) return;
+
+      if (obj.state === 'pinned') {
+        obj.state = 'damaged';
+        obj.hitAt = now;
+      } else if (obj.state === 'damaged') {
+        obj.state = 'fallen';
+        obj.hitAt = now;
+        Body.setStatic(obj.body, false);
+        Body.setAngularVelocity(
+          obj.body,
+          (Math.random() - 0.5) * FALL_ANGULAR_VELOCITY,
+        );
+      }
+    };
+
     const handleCollisionStart = (
       event: Matter.IEventCollision<Matter.Engine>,
     ) => {
+      const now = performance.now();
       for (const pair of event.pairs) {
-        if (!isGroundPair(pair)) continue;
-        if (!canJump) squashUntil = performance.now() + LANDING_SQUASH_MS;
-        canJump = true;
+        if (isGroundPair(pair)) {
+          if (!canJump) squashUntil = now + LANDING_SQUASH_MS;
+          canJump = true;
+        }
+        handleObjectImpact(pair.bodyA, pair.bodyB, now);
+        handleObjectImpact(pair.bodyB, pair.bodyA, now);
       }
     };
 
@@ -933,6 +1356,8 @@ export default function HeroGame() {
       if (state !== 'active') return;
       state = 'passive';
       heroEl?.removeAttribute('data-game-active');
+      heroContentEl?.removeAttribute('inert');
+      heroContentEl?.removeAttribute('aria-hidden');
 
       if (engine) {
         Events.off(engine, 'collisionStart', handleCollisionStart);
@@ -944,6 +1369,8 @@ export default function HeroGame() {
       playerBody = null;
       sidewalkGround = null;
       roadGround = null;
+      interactiveObjects = [];
+      objectsById.clear();
       playerLevel = 'sidewalk';
 
       window.removeEventListener('keydown', onKeyDown);
@@ -1060,9 +1487,11 @@ export default function HeroGame() {
       if (state === 'active' || prefersReducedMotion) return;
       state = 'active';
       heroEl?.setAttribute('data-game-active', 'true');
+      heroContentEl?.setAttribute('inert', '');
+      heroContentEl?.setAttribute('aria-hidden', 'true');
 
       const cell = cellOf(height);
-      const baseline = height * 0.8;
+      const baseline = height * HERO_BASELINE_RATIO;
       const groundThickness = cell * 2;
       const wallThickness = cell;
       const playerWidth = cell * 2;
@@ -1109,11 +1538,39 @@ export default function HeroGame() {
       );
       Body.setInertia(playerBody, Infinity);
 
+      const playerMass = playerBody.mass;
+      const heroLayout = computeHeroLayout(ctx, cell);
+      interactiveObjects = [
+        ...heroLayout.tagline.map((layout) =>
+          createInteractiveObject(layout, 'tagline', playerMass, false),
+        ),
+        ...heroLayout.wordmark.map((layout) =>
+          createInteractiveObject(layout, 'wordmark', playerMass * 2, false),
+        ),
+        ...heroLayout.badges.map((layout) =>
+          createInteractiveObject(
+            layout,
+            'badge',
+            playerMass * BADGE_MASS_MULTIPLIER,
+          ),
+        ),
+        ...heroLayout.buttons.map((layout) =>
+          createInteractiveObject(
+            layout,
+            'button',
+            playerMass * BUTTON_MASS_MULTIPLIER,
+          ),
+        ),
+      ];
+      objectsById.clear();
+      for (const obj of interactiveObjects) objectsById.set(obj.body.id, obj);
+
       Composite.add(engine.world, [
         sidewalkGround,
         leftWall,
         rightWall,
         playerBody,
+        ...interactiveObjects.map((obj) => obj.body),
       ]);
       Events.on(engine, 'collisionStart', handleCollisionStart);
       Events.on(engine, 'collisionEnd', handleCollisionEnd);
@@ -1134,26 +1591,15 @@ export default function HeroGame() {
       document.addEventListener('pointerdown', onDocumentPointerDown);
     };
 
-    const isWithinPromptButton = (event: MouseEvent | PointerEvent) => {
-      if (!promptButtonRect) return false;
-      const rect = canvas.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-      return (
-        x >= promptButtonRect.x &&
-        x <= promptButtonRect.x + promptButtonRect.width &&
-        y >= promptButtonRect.y &&
-        y <= promptButtonRect.y + promptButtonRect.height
-      );
-    };
-
     const onCanvasClick = (event: MouseEvent) => {
-      if (state === 'passive' && isWithinPromptButton(event)) activate();
+      if (state === 'passive') {
+        event.preventDefault();
+        activate();
+      }
     };
 
-    const onCanvasPointerMove = (event: PointerEvent) => {
-      canvas.style.cursor =
-        state === 'passive' && isWithinPromptButton(event) ? 'pointer' : '';
+    const onCanvasPointerMove = () => {
+      canvas.style.cursor = state === 'passive' ? 'pointer' : '';
     };
 
     const resize = () => {
