@@ -53,6 +53,8 @@ export const BILLBOARD_MESSAGES = [
   'Slam unlocked\nSmash it all!',
   'You are crushing\nit. Literally!',
 ];
+export const BILLBOARD_STAR_POWER_TEXT = 'FEEL THE POWER!';
+export const BILLBOARD_FINALE_TEXT = 'Congrats, you\nbroke everything!';
 
 function drawBillboardArrow(
   ctx: CanvasRenderingContext2D,
@@ -71,6 +73,87 @@ function drawBillboardArrow(
   }
 
   return arrowWidth;
+}
+
+const STAR_POWER_RAINBOW = [
+  '#ff4d5d',
+  '#ffb347',
+  '#fff27a',
+  '#39ff14',
+  '#4db5ff',
+  '#a77cff',
+  '#ff4fd8',
+] as const;
+
+/**
+ * Chunky 8-bit "plasma" — a handful of overlapping sine waves quantized into
+ * the rainbow palette and warped over time, like a classic demoscene effect
+ * rendered as big square pixels.
+ */
+function drawStarPowerPlasma(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  cell: number,
+  elapsed: number,
+) {
+  const px = Math.max(3, Math.floor(cell * 0.45));
+  const cols = Math.ceil(width / px);
+  const rows = Math.ceil(height / px);
+  const t = elapsed * 0.0024;
+  const colorCount = STAR_POWER_RAINBOW.length;
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const dx = col - cols / 2;
+      const dy = row - rows / 2;
+      const value =
+        Math.sin(col * 0.45 + t * 3) +
+        Math.sin(row * 0.5 - t * 2.2) +
+        Math.sin((dx + dy) * 0.4 + t * 4) +
+        Math.sin(Math.sqrt(dx * dx + dy * dy) * 0.5 - t * 3.4);
+      const index =
+        ((Math.floor(value) % colorCount) + colorCount) % colorCount;
+      ctx.fillStyle = STAR_POWER_RAINBOW[index];
+      ctx.fillRect(x + col * px, y + row * px, px, px);
+    }
+  }
+}
+
+function drawBillboardStarPowerScreen(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  cell: number,
+  elapsed: number,
+) {
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, width, height);
+  ctx.clip();
+
+  drawStarPowerPlasma(ctx, x, y, width, height, cell, elapsed);
+
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, width * 0.75);
+  glow.addColorStop(0, 'rgba(255, 255, 255, 0.26)');
+  glow.addColorStop(0.45, 'rgba(255, 255, 255, 0.06)');
+  glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(x, y, width, height);
+
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = '#ffffff';
+  for (let scanY = y; scanY < y + height; scanY += 4) {
+    ctx.fillRect(x, scanY, width, 1);
+  }
+  ctx.restore();
 }
 
 export function getBillboardFrameWidth(cell: number): number {
@@ -128,6 +211,7 @@ export function drawBillboard(
     musicTrackIndex?: number;
     musicTrackCount?: number;
     starPower?: boolean;
+    finale?: boolean;
   },
 ) {
   const { x, y } = origin;
@@ -141,24 +225,7 @@ export function drawBillboard(
   ctx.fillStyle = colors.screen;
   ctx.fillRect(x, y, width, height);
   if (options?.starPower && !options?.screenBroken) {
-    const stripeHeight = Math.max(3, Math.floor(cell * 0.42));
-    const rainbow = [
-      '#ff4d5d',
-      '#ffb347',
-      '#fff27a',
-      '#39ff14',
-      '#4db5ff',
-      '#ff4fd8',
-    ];
-    ctx.save();
-    ctx.globalAlpha = 0.34;
-    for (let yy = y; yy < y + height; yy += stripeHeight) {
-      const index =
-        Math.floor((yy - y) / stripeHeight + elapsed / 110) % rainbow.length;
-      ctx.fillStyle = rainbow[index];
-      ctx.fillRect(x, yy, width, stripeHeight);
-    }
-    ctx.restore();
+    drawBillboardStarPowerScreen(ctx, x, y, width, height, cell, elapsed);
   }
   if (options?.screenBroken) {
     const seedBase = Math.floor(elapsed / 70);
@@ -202,6 +269,8 @@ export function drawBillboard(
       options?.musicTrackIndex ?? 0,
       options?.musicTrackCount ?? 1,
     );
+  } else if (options?.finale) {
+    drawBillboardCatFace(ctx, x, y, width, height, colors.facePixel, elapsed);
   } else if (options?.screenBroken) {
     ctx.strokeStyle = colors.glow;
     ctx.lineWidth = Math.max(1, Math.floor(cell * 0.12));
@@ -216,6 +285,8 @@ export function drawBillboard(
     ctx.stroke();
   } else if (options?.stunned) {
     drawBillboardStunnedFace(ctx, x, y, width, height, colors.facePixel);
+  } else if (options?.starPower) {
+    drawBillboardCatFace(ctx, x, y, width, height, colors.facePixel, elapsed);
   } else {
     // Face — shifted into upper ~40% of screen to leave room for text below
     ctx.fillStyle = colors.facePixel;
@@ -242,12 +313,15 @@ export function drawBillboard(
   if (
     showMessage &&
     !options?.helpOpen &&
-    !options?.screenBroken &&
-    !options?.stunned
+    (options?.finale || (!options?.screenBroken && !options?.stunned))
   ) {
     // Terminal text with blinking underscore cursor
     const cursor = Math.floor(elapsed / 530) % 2 === 0 ? '_' : ' ';
-    const message = options?.message ?? BILLBOARD_TEXT;
+    const message = options?.finale
+      ? BILLBOARD_FINALE_TEXT
+      : options?.starPower
+        ? BILLBOARD_STAR_POWER_TEXT
+        : (options?.message ?? BILLBOARD_TEXT);
     const lines = message.split('\n').slice(0, 2);
     if (lines.length > 0) lines[lines.length - 1] += cursor;
     const arrowSize = Math.max(8, cell * 0.9);
@@ -340,6 +414,74 @@ export function drawBillboard(
     ctx.textBaseline = 'alphabetic';
     ctx.restore();
   }
+}
+
+/** ":3" cat face — happy chevron eyes, a wavy "3" mouth, and whiskers. */
+function drawBillboardCatFace(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  color: string,
+  elapsed: number,
+) {
+  const px = Math.max(3, Math.floor(width / 18));
+  const eyeY = y + height * 0.32;
+  const leftEyeX = x + width * 0.34;
+  const rightEyeX = x + width * 0.66;
+  const centerX = x + width / 2;
+  const mouthY = y + height * 0.52;
+  const bounce = Math.sin(elapsed * 0.012) > 0 ? px * 0.5 : 0;
+
+  ctx.save();
+  ctx.fillStyle = color;
+
+  const drawHappyEye = (cx: number) => {
+    const pixels: ReadonlyArray<readonly [number, number]> = [
+      [0, 0],
+      [-1, 1],
+      [1, 1],
+    ];
+    for (const [col, row] of pixels) {
+      ctx.fillRect(cx + col * px, eyeY + row * px - bounce, px, px);
+    }
+  };
+
+  drawHappyEye(leftEyeX);
+  drawHappyEye(rightEyeX);
+
+  const mouthPixels: ReadonlyArray<readonly [number, number]> = [
+    [-4, 0],
+    [-3, 1],
+    [-2, 0],
+    [-1, 1],
+    [0, 0],
+    [1, 1],
+    [2, 0],
+    [3, 1],
+    [4, 0],
+  ];
+  for (const [col, row] of mouthPixels) {
+    ctx.fillRect(centerX + col * px, mouthY + row * px, px, px);
+  }
+
+  const whiskerThickness = Math.max(1, Math.floor(px * 0.4));
+  const whiskerLength = px * 3;
+  const whiskerGap = px * 0.9;
+  const whiskerY = mouthY - px * 0.5;
+  for (let i = 0; i < 2; i++) {
+    const wy = whiskerY + i * whiskerGap;
+    ctx.fillRect(x + width * 0.06, wy, whiskerLength, whiskerThickness);
+    ctx.fillRect(
+      x + width - width * 0.06 - whiskerLength,
+      wy,
+      whiskerLength,
+      whiskerThickness,
+    );
+  }
+
+  ctx.restore();
 }
 
 function drawBillboardStunnedFace(

@@ -1,6 +1,7 @@
-import musicTrack8BitUrl from '../../../assets/audio/dj-artmusic-8-bit.mp3?url';
 import musicTrackFunUrl from '../../../assets/audio/dj-artmusic-fun.mp3?url';
 import musicTrackHeroUrl from '../../../assets/audio/dj-artmusic-hero.mp3?url';
+import musicTrackReturnUrl from '../../../assets/audio/dj-artmusic-return.mp3?url';
+import musicTrackWorldUrl from '../../../assets/audio/dj-artmusic-world.mp3?url';
 
 const MUTED_KEY = 'heroGameAudioMuted';
 const VOLUME_KEY = 'heroGameAudioVolume';
@@ -15,7 +16,7 @@ const DEFAULT_MUSIC_MUTED = false;
 const MUSIC_VOLUME_SCALE = 0.45;
 const MUSIC_TRACK_URLS = [
   musicTrackFunUrl,
-  musicTrack8BitUrl,
+  musicTrackReturnUrl,
   musicTrackHeroUrl,
 ] as const;
 
@@ -346,6 +347,9 @@ class HeroAudioEngine {
   private musicTrackIndex = readStoredMusicTrackIndex();
   private ctx: AudioContext | null = null;
   private music: HTMLAudioElement | null = null;
+  private starPowerStopId = 0;
+  private starPowerReturnTrackIndex = 0;
+  private starPowerMusicActive = false;
   private readonly listeners = new Set<Listener>();
 
   isMuted(): boolean {
@@ -409,11 +413,18 @@ class HeroAudioEngine {
 
     this.musicTrackIndex = wrapped;
     window.localStorage.setItem(MUSIC_TRACK_INDEX_KEY, String(wrapped));
+    if (this.starPowerMusicActive) {
+      this.starPowerReturnTrackIndex = wrapped;
+      this.notify();
+      return;
+    }
 
     const wasPlaying = this.music !== null && !this.music.paused;
     if (this.music) {
       this.music.pause();
-      this.music.src = MUSIC_TRACK_URLS[this.musicTrackIndex];
+      this.music.src = this.starPowerMusicActive
+        ? musicTrackWorldUrl
+        : MUSIC_TRACK_URLS[this.musicTrackIndex];
       this.music.load();
       this.music.currentTime = 0;
       this.applyMusicVolume();
@@ -456,7 +467,11 @@ class HeroAudioEngine {
   playMusic() {
     if (typeof window === 'undefined') return;
     if (!this.music) {
-      const audio = new Audio(MUSIC_TRACK_URLS[this.musicTrackIndex]);
+      const audio = new Audio(
+        this.starPowerMusicActive
+          ? musicTrackWorldUrl
+          : MUSIC_TRACK_URLS[this.musicTrackIndex],
+      );
       audio.loop = true;
       audio.preload = 'auto';
       this.music = audio;
@@ -468,9 +483,56 @@ class HeroAudioEngine {
 
   /** Pauses the background track (called on exit/deactivate). */
   stopMusic() {
+    this.stopStarPowerMusic();
     if (!this.music) return;
     this.music.pause();
     this.music.currentTime = 0;
+  }
+
+  startStarPowerMusic(durationMs: number) {
+    if (typeof window === 'undefined') return;
+    this.stopStarPowerMusic();
+    this.starPowerMusicActive = true;
+    this.starPowerReturnTrackIndex = this.musicTrackIndex;
+
+    if (!this.music) {
+      const audio = new Audio(musicTrackWorldUrl);
+      audio.loop = false;
+      audio.preload = 'auto';
+      this.music = audio;
+    } else {
+      this.music.pause();
+      this.music.src = musicTrackWorldUrl;
+      this.music.load();
+      this.music.loop = false;
+    }
+
+    this.music.currentTime = 0;
+    this.applyMusicVolume();
+    void this.music.play().catch(() => {});
+    this.starPowerStopId = window.setTimeout(() => {
+      this.stopStarPowerMusic(true);
+    }, durationMs);
+  }
+
+  stopStarPowerMusic(resumePlaylist = false) {
+    if (this.starPowerStopId) {
+      window.clearTimeout(this.starPowerStopId);
+      this.starPowerStopId = 0;
+    }
+    if (!this.starPowerMusicActive) return;
+    this.starPowerMusicActive = false;
+    if (!this.music) return;
+
+    const wasPlaying = !this.music.paused;
+    this.music.pause();
+    this.musicTrackIndex = this.starPowerReturnTrackIndex;
+    this.music.src = MUSIC_TRACK_URLS[this.musicTrackIndex];
+    this.music.load();
+    this.music.loop = true;
+    this.music.currentTime = 0;
+    this.applyMusicVolume();
+    if (resumePlaylist && wasPlaying) void this.music.play().catch(() => {});
   }
 
   /** Plays a synthesized SFX patch, skipped entirely while muted or silent. */

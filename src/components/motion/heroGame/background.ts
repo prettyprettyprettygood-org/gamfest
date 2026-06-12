@@ -316,6 +316,7 @@ export function drawBackground(
     volume?: number;
     beforeSkyline?: () => void;
     starPower?: boolean;
+    finale?: boolean;
   },
 ) {
   ctx.clearRect(0, 0, width, height);

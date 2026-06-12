@@ -48,7 +48,9 @@ import {
   WALK_PUSH_FORCE,
 } from './heroGame/constants';
 import {
+  BILLBOARD_FINALE_TEXT,
   BILLBOARD_MESSAGES,
+  BILLBOARD_STAR_POWER_TEXT,
   drawClickToPlayPrompt,
   drawBillboardHelp,
   FACE_FRAMES,
@@ -221,10 +223,10 @@ export default function HeroGame() {
     const BRICK_LEDGE_DROP_MS = 360;
     const CLOUD_DROP_THROUGH_MS = 700;
     const WORDMARK_PLATE_UNLOCK_DELAY_MS = 420;
-    const STAR_POWER_MS = 60_000;
-    const testSpawn = new URLSearchParams(window.location.search).get(
-      'heroSpawn',
-    );
+    const STAR_POWER_MS = 76_000;
+    const searchParams = new URLSearchParams(window.location.search);
+    const testSpawn =
+      searchParams.get('heroSpawn') ?? searchParams.get('spawn');
 
     const addFeedback = (
       text: string,
@@ -282,11 +284,36 @@ export default function HeroGame() {
     };
 
     const getBillboardRenderOptions = (now: number) => {
+      if (finaleTriggered) {
+        return {
+          message: BILLBOARD_FINALE_TEXT,
+          glitching: false,
+          noiseSeed: now,
+          showControls: state === 'active',
+          helpOpen: billboardHelpOpen,
+          screenBroken: false,
+          stunned: false,
+          helpHovered: billboardHovered && !billboardHelpOpen,
+          helpHoverStartedAt: billboardHoverStartedAt,
+          reducedMotion: prefersReducedMotion,
+          faceFrame: billboardFaceFrame,
+          volume: audio.getVolume(),
+          musicMuted: audio.isMusicMuted(),
+          musicTrackIndex: audio.getMusicTrackIndex(),
+          musicTrackCount: audio.getMusicTrackCount(),
+          starPower: false,
+          finale: true,
+        };
+      }
+
       const billboardStunned = now < billboardStunnedUntil;
+      const starPowerActive = fireworksActive && now < starPowerUntil;
       if (billboardPhase === 'idle') {
         const glitching = now < billboardScrambleUntil;
         return {
-          message: billboardCurrentText,
+          message: starPowerActive
+            ? BILLBOARD_STAR_POWER_TEXT
+            : billboardCurrentText,
           glitching,
           noiseSeed: now,
           showControls: state === 'active',
@@ -301,7 +328,7 @@ export default function HeroGame() {
           musicMuted: audio.isMusicMuted(),
           musicTrackIndex: audio.getMusicTrackIndex(),
           musicTrackCount: audio.getMusicTrackCount(),
-          starPower: fireworksActive && now < starPowerUntil,
+          starPower: starPowerActive,
         };
       }
 
@@ -325,8 +352,9 @@ export default function HeroGame() {
         billboardTypedChars = typeChars;
         audio.playSfx('billboardTalk');
       }
-      const message =
-        deleteChars < billboardPreviousText.length
+      const message = starPowerActive
+        ? BILLBOARD_STAR_POWER_TEXT
+        : deleteChars < billboardPreviousText.length
           ? billboardPreviousText.slice(
               0,
               billboardPreviousText.length - deleteChars,
@@ -366,7 +394,7 @@ export default function HeroGame() {
         musicMuted: audio.isMusicMuted(),
         musicTrackIndex: audio.getMusicTrackIndex(),
         musicTrackCount: audio.getMusicTrackCount(),
-        starPower: fireworksActive && now < starPowerUntil,
+        starPower: starPowerActive,
       };
     };
 
@@ -487,7 +515,7 @@ export default function HeroGame() {
       const billboardRenderOptions = getBillboardRenderOptions(now);
       drawBackground(ctx, width, height, palette, elapsed, daytime, true, {
         ...billboardRenderOptions,
-        beforeSkyline: fireworksActive
+        beforeSkyline: billboardRenderOptions.starPower
           ? () => {
               ctx.save();
               if (cameraOffsetY > 0) ctx.translate(0, -cameraOffsetY);
@@ -1099,8 +1127,10 @@ export default function HeroGame() {
       fireworksActive = true;
       fireworks.nextLaunchAt = 0;
       starPowerUntil = now + STAR_POWER_MS;
+      if (hasDoubleJump) doubleJumpAvailable = true;
       addFeedback('+ Fireworks!', 'good', -cellOf(height) * 1.15);
       audio.playSfx('pickup');
+      audio.startStarPowerMusic(STAR_POWER_MS);
     };
 
     const handleBillboardImpact = (
@@ -1181,6 +1211,7 @@ export default function HeroGame() {
       heroEl?.removeAttribute('data-game-active');
       heroContentEl?.removeAttribute('inert');
       heroContentEl?.removeAttribute('aria-hidden');
+      audio.stopStarPowerMusic();
       audio.stopMusic();
 
       if (engine) {
@@ -1324,7 +1355,9 @@ export default function HeroGame() {
                 x: playerBody.velocity.x,
                 y: -PLAYER_DOUBLE_JUMP_VELOCITY,
               });
-              doubleJumpAvailable = false;
+              const starPowerActive =
+                fireworksActive && performance.now() < starPowerUntil;
+              doubleJumpAvailable = starPowerActive;
               audio.playSfx('doubleJump');
             }
           }
@@ -1526,6 +1559,7 @@ export default function HeroGame() {
       }
 
       const cell = cellOf(height);
+      audio.stopStarPowerMusic();
       const baseline = height * HERO_BASELINE_RATIO;
       const groundThickness = cell * 2;
       const wallThickness = cell;
@@ -1845,11 +1879,9 @@ export default function HeroGame() {
       roadDropPx = roadDrop;
       sidewalkRestY = baseline - playerHeight / 2;
       if (testSpawn === 'cloud' && playerBody) {
-        const spawnCloud =
-          cloudPlatforms[Math.min(4, cloudPlatforms.length - 1)] ??
-          elevatedCloud;
+        const spawnCloud = topCloud ?? elevatedCloud;
         Body.setPosition(playerBody, {
-          x: spawnCloud.body.position.x,
+          x: spawnCloud.body.position.x - cell * 2.4,
           y: spawnCloud.body.bounds.min.y - playerHeight / 2 - cell * 0.25,
         });
         Body.setVelocity(playerBody, { x: 0, y: 0 });
