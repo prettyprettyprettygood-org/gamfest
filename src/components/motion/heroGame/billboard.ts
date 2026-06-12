@@ -119,6 +119,7 @@ export function drawBillboard(
     showControls?: boolean;
     helpOpen?: boolean;
     screenBroken?: boolean;
+    stunned?: boolean;
     volume?: number;
     musicMuted?: boolean;
     musicTrackIndex?: number;
@@ -210,6 +211,8 @@ export function drawBillboard(
     ctx.lineTo(x + width * 0.62, y + height * 0.44);
     ctx.lineTo(x + width * 0.82, y + height * 0.68);
     ctx.stroke();
+  } else if (options?.stunned) {
+    drawBillboardStunnedFace(ctx, x, y, width, height, colors.facePixel);
   } else {
     // Face — shifted into upper ~40% of screen to leave room for text below
     ctx.fillStyle = colors.facePixel;
@@ -233,7 +236,12 @@ export function drawBillboard(
     }
   }
 
-  if (showMessage && !options?.helpOpen && !options?.screenBroken) {
+  if (
+    showMessage &&
+    !options?.helpOpen &&
+    !options?.screenBroken &&
+    !options?.stunned
+  ) {
     // Terminal text with blinking underscore cursor
     const cursor = Math.floor(elapsed / 530) % 2 === 0 ? '_' : ' ';
     const message = options?.message ?? BILLBOARD_TEXT;
@@ -311,6 +319,57 @@ export function drawBillboard(
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
   }
+}
+
+function drawBillboardStunnedFace(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  color: string,
+) {
+  const px = Math.max(3, Math.floor(width / 18));
+  const eyeY = y + height * 0.34;
+  const leftEyeX = x + width * 0.32;
+  const rightEyeX = x + width * 0.68;
+  const mouthY = y + height * 0.64;
+  const mouthX = x + width * 0.34;
+
+  ctx.save();
+  ctx.fillStyle = color;
+
+  const drawChevronEye = (cx: number, direction: -1 | 1) => {
+    const columns = [
+      [0, 0],
+      [1, 1],
+      [2, 2],
+      [1, 3],
+      [0, 4],
+    ] as const;
+    for (const [col, row] of columns) {
+      const mirroredCol = direction === 1 ? col : 2 - col;
+      ctx.fillRect(cx + (mirroredCol - 1) * px, eyeY + (row - 2) * px, px, px);
+    }
+  };
+
+  drawChevronEye(leftEyeX, 1);
+  drawChevronEye(rightEyeX, -1);
+
+  const mouthPixels: ReadonlyArray<readonly [number, number]> = [
+    [0, 1],
+    [1, 0],
+    [2, 1],
+    [3, 0],
+    [4, 1],
+    [5, 0],
+    [6, 1],
+  ];
+  for (const [col, row] of mouthPixels) {
+    ctx.fillRect(mouthX + col * px, mouthY + row * px, px, px);
+  }
+
+  ctx.restore();
 }
 
 export function getBillboardHelpButtonBounds(

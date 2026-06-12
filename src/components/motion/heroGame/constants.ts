@@ -39,6 +39,7 @@ export const BILLBOARD_GLITCH_MS = 600;
 export const BILLBOARD_DELETE_MS_PER_CHAR = 40;
 export const BILLBOARD_TYPE_MS_PER_CHAR = 60;
 export const BILLBOARD_HIT_COOLDOWN_MS = 900;
+export const BILLBOARD_STUN_MS = 2400;
 export const CAMERA_SHIFT_CELLS = 5;
 /** Player's top edge (bounds.min.y) above this many cells triggers the shift back down. */
 export const CAMERA_SHIFT_DOWN_TRIGGER_CELLS = 2;

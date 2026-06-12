@@ -12,6 +12,7 @@ import {
   BILLBOARD_DELETE_MS_PER_CHAR,
   BILLBOARD_GLITCH_MS,
   BILLBOARD_HIT_COOLDOWN_MS,
+  BILLBOARD_STUN_MS,
   BILLBOARD_TYPE_MS_PER_CHAR,
   BRACKET_WOBBLE_AMPLITUDE,
   BRACKET_WOBBLE_CYCLES,
@@ -173,6 +174,7 @@ export default function HeroGame() {
     let elevatedLedge: Matter.Body | null = null;
     let cloudPlatforms: CloudPlatform[] = [];
     let billboardTop: Matter.Body | null = null;
+    let billboardTopPlatform: CloudPlatform | null = null;
     let billboardHitbox: Matter.Body | null = null;
     let blueRing: Matter.Body | null = null;
     let redRing: Matter.Body | null = null;
@@ -198,6 +200,7 @@ export default function HeroGame() {
     let billboardFaceFrame = 0;
     let billboardHelpOpen = false;
     let billboardScreenBroken = false;
+    let billboardStunnedUntil = 0;
     let lastBillboardHitAt = -Infinity;
     let billboardScrambleUntil = 0;
     let billboardTypedChars = 0;
@@ -277,6 +280,7 @@ export default function HeroGame() {
     };
 
     const getBillboardRenderOptions = (now: number) => {
+      const billboardStunned = now < billboardStunnedUntil;
       if (billboardPhase === 'idle') {
         const glitching = now < billboardScrambleUntil;
         return {
@@ -285,7 +289,8 @@ export default function HeroGame() {
           noiseSeed: now,
           showControls: state === 'active',
           helpOpen: billboardHelpOpen,
-          screenBroken: billboardScreenBroken,
+          screenBroken: billboardScreenBroken && !billboardStunned,
+          stunned: billboardStunned,
           faceFrame: glitching ? 2 : billboardFaceFrame,
           volume: audio.getVolume(),
           musicMuted: audio.isMusicMuted(),
@@ -341,7 +346,8 @@ export default function HeroGame() {
         noiseSeed: now,
         showControls: state === 'active',
         helpOpen: billboardHelpOpen,
-        screenBroken: billboardScreenBroken,
+        screenBroken: billboardScreenBroken && !billboardStunned,
+        stunned: billboardStunned,
         faceFrame:
           t < BILLBOARD_GLITCH_MS
             ? 2
@@ -437,6 +443,15 @@ export default function HeroGame() {
         showBillboardMessage(BILLBOARD_ARROW_MESSAGE, now);
         doubleJumpHintAt = Infinity;
       }
+    };
+
+    const triggerBillboardStun = (now: number) => {
+      billboardScreenBroken = false;
+      billboardStunnedUntil = now + BILLBOARD_STUN_MS;
+      billboardHelpOpen = false;
+      helpOpenedAt = 0;
+      billboardScrambleUntil = 0;
+      audio.playSfx('hitHeavy');
     };
 
     const drawPassiveFrame = () => {
@@ -572,9 +587,12 @@ export default function HeroGame() {
     const updateCloudPlatforms = (now: number) => {
       if (!engine || !playerBody) return;
       const cell = cellOf(height);
-      for (const cloud of cloudPlatforms) {
-        updateCloudPlatform(cloud, engine, playerBody, now, cell);
-        if (cloud.body.isSensor) supportContacts.delete(cloud.body.id);
+      const oneWayPlatforms = billboardTopPlatform
+        ? [...cloudPlatforms, billboardTopPlatform]
+        : cloudPlatforms;
+      for (const platform of oneWayPlatforms) {
+        updateCloudPlatform(platform, engine, playerBody, now, cell);
+        if (platform.body.isSensor) supportContacts.delete(platform.body.id);
       }
       canJump = supportContacts.size > 0;
     };
@@ -624,20 +642,29 @@ export default function HeroGame() {
 
       const body = playerBody;
       const cell = cellOf(height);
+      const oneWayPlatforms = billboardTopPlatform
+        ? [...cloudPlatforms, billboardTopPlatform]
+        : cloudPlatforms;
       return (
-        cloudPlatforms.find((cloud) => {
-          if (cloud.body.isSensor) return false;
+        oneWayPlatforms.find((platform) => {
+          if (platform.body.isSensor) return false;
           const horizontallyOverlapping =
-            body.bounds.max.x > cloud.body.bounds.min.x + cell * 0.15 &&
-            body.bounds.min.x < cloud.body.bounds.max.x - cell * 0.15;
-          const bodyAboveCloud = body.position.y < cloud.body.position.y;
+            body.bounds.max.x > platform.body.bounds.min.x + cell * 0.15 &&
+            body.bounds.min.x < platform.body.bounds.max.x - cell * 0.15;
+          const bodyAbovePlatform = body.position.y < platform.body.position.y;
 
           return (
-            horizontallyOverlapping && bodyAboveCloud && body.velocity.y >= -0.5
+            horizontallyOverlapping &&
+            bodyAbovePlatform &&
+            body.velocity.y >= -0.5
           );
         }) ?? null
       );
     };
+
+    const findOneWayPlatform = (body: Matter.Body) =>
+      findCloudPlatform(cloudPlatforms, body) ??
+      (billboardTopPlatform?.body === body ? billboardTopPlatform : null);
 
     const getWordmarkPlate = () =>
       interactiveObjects.find((obj) => obj.kind === 'wordmarkPlate') ?? null;
@@ -654,8 +681,7 @@ export default function HeroGame() {
       body === sidewalkGround ||
       body === roadGround ||
       (body === brickLedge && !body.isSensor) ||
-      (findCloudPlatform(cloudPlatforms, body) !== null && !body.isSensor) ||
-      body === billboardTop ||
+      (findOneWayPlatform(body) !== null && !body.isSensor) ||
       (objectsById.has(body.id) && !body.isSensor);
 
     const getPlayerSupportBody = (pair: Matter.Pair) => {
@@ -1073,28 +1099,25 @@ export default function HeroGame() {
       pair: Matter.Pair,
       now: number,
       playerVelocityY: number,
+      playerWasSlamming: boolean,
     ) => {
-      if (!playerBody || !billboardHitbox) return;
-      const hitBillboard =
+      if (!playerBody || !billboardHitbox || !billboardTop) return;
+      const hitBillboardScreen =
         (pair.bodyA === playerBody && pair.bodyB === billboardHitbox) ||
         (pair.bodyB === playerBody && pair.bodyA === billboardHitbox);
-      if (!hitBillboard) return;
+      const hitBillboardTop =
+        (pair.bodyA === playerBody && pair.bodyB === billboardTop) ||
+        (pair.bodyB === playerBody && pair.bodyA === billboardTop);
+      if (!hitBillboardScreen && !hitBillboardTop) return;
 
       if (
-        isSlamming &&
+        playerWasSlamming &&
         playerVelocityY >= SLAM_IMPACT_MIN_VELOCITY &&
-        !billboardScreenBroken
+        (hitBillboardTop || hitBillboardScreen)
       ) {
-        billboardScreenBroken = true;
-        billboardPhase = 'idle';
-        billboardCurrentText = '';
-        billboardTargetText = '';
-        billboardFaceFrame = 2;
-        billboardHelpOpen = false;
-        helpOpenedAt = 0;
+        triggerBillboardStun(now);
         Body.setVelocity(playerBody, { x: playerBody.velocity.x, y: -4 });
         isSlamming = false;
-        audio.playSfx('hitHeavy');
         return;
       }
 
@@ -1115,9 +1138,10 @@ export default function HeroGame() {
       // an impact response. Reading `playerBody.velocity.y` live would let an
       // earlier pair's response mask a later pair's impact in this same step.
       const playerVelocityY = playerBody?.velocity.y ?? 0;
+      const playerWasSlamming = isSlamming;
       for (const pair of event.pairs) {
         addSupportContact(pair, now);
-        handleBillboardImpact(pair, now, playerVelocityY);
+        handleBillboardImpact(pair, now, playerVelocityY, playerWasSlamming);
         handleRingPickup(pair);
         handleStarPickup(pair);
         handleFallenObjectSidePush(pair);
@@ -1166,6 +1190,7 @@ export default function HeroGame() {
       elevatedLedge = null;
       cloudPlatforms = [];
       billboardTop = null;
+      billboardTopPlatform = null;
       billboardHitbox = null;
       blueRing = null;
       redRing = null;
@@ -1198,6 +1223,7 @@ export default function HeroGame() {
       billboardHelpOpen = false;
       helpOpenedAt = 0;
       billboardScreenBroken = false;
+      billboardStunnedUntil = 0;
       lastBillboardHitAt = -Infinity;
       billboardScrambleUntil = 0;
       billboardTypedChars = 0;
@@ -1652,8 +1678,15 @@ export default function HeroGame() {
           isStatic: true,
           friction: SURFACE_FRICTION,
           frictionStatic: SURFACE_FRICTION_STATIC,
+          label: 'billboard-top',
         },
       );
+      billboardTopPlatform = {
+        body: billboardTop,
+        brokenUntil: 0,
+        passthroughUntil: 0,
+        inWorld: true,
+      };
       billboardHitbox = Bodies.rectangle(
         billboard.bbX + billboard.bbWidth / 2,
         billboard.bbY + billboard.bbHeight / 2,
@@ -1787,6 +1820,7 @@ export default function HeroGame() {
       billboardTargetText = BILLBOARD_MESSAGES[0];
       billboardFaceFrame = 0;
       billboardScreenBroken = false;
+      billboardStunnedUntil = 0;
       lastBillboardHitAt = -Infinity;
       billboardScrambleUntil = 0;
       billboardTypedChars = 0;
