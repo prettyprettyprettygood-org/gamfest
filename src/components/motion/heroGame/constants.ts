@@ -58,6 +58,8 @@ export const SLAM_DAMAGE = 5;
 export const BUMP_DAMAGE = 1;
 /** Minimum time between bump hits on the same object, so one jump arc doesn't multi-hit. */
 export const BUMP_HIT_COOLDOWN_MS = 180;
+/** Broken clouds reform quickly so slam-through feels temporary, not punitive. */
+export const CLOUD_REPAIR_MS = 750;
 /** Small spin imparted to objects when they start falling, so stacks tumble unevenly. */
 export const FALL_ANGULAR_VELOCITY = 0.15;
 /** Buttons are heavier than badges, per PRD "Difficulty Tuning" — both relative to player mass. */

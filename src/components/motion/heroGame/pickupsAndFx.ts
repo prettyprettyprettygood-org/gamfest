@@ -1,5 +1,6 @@
 import type Matter from 'matter-js';
 import {
+  CLOUD_REPAIR_MS,
   CONFETTI_COLORS,
   CONFETTI_COUNT,
   FEEDBACK_MS,
@@ -108,37 +109,80 @@ export function drawRingPickup(
  * rectangle topped with a row of overlapping rounded puffs. Generic over
  * size/position so it can be reused for additional cloud platforms later.
  */
-export function drawElevatedLedge(
+export function drawFlatCloudPlatform(
   ctx: CanvasRenderingContext2D,
   body: Matter.Body,
   cell: number,
   daytime: boolean,
+  now = 0,
+  brokenUntil = 0,
 ) {
   const { x, y } = body.position;
   const width = body.bounds.max.x - body.bounds.min.x;
   const height = body.bounds.max.y - body.bounds.min.y;
   const cloudColor = daytime ? '#ffffff' : '#c7c2e6';
   const puffShade = daytime ? '#eaf2fb' : '#aea7d4';
+  const broken = now < brokenUntil;
+  const repairProgress =
+    brokenUntil > 0
+      ? Math.max(0, Math.min(1, 1 - (brokenUntil - now) / CLOUD_REPAIR_MS))
+      : 1;
 
   ctx.save();
   ctx.translate(x - width / 2, y - height / 2);
 
+  if (broken) {
+    ctx.globalAlpha = 0.35 + repairProgress * 0.25;
+  }
   ctx.fillStyle = cloudColor;
-  ctx.fillRect(0, 0, width, height);
+  if (!broken) {
+    ctx.fillRect(0, 0, width, height);
+  } else {
+    const shardCount = 5;
+    const shardWidth = width / shardCount;
+    for (let i = 0; i < shardCount; i += 1) {
+      const drift = Math.sin(now * 0.008 + body.id + i) * cell * 0.18;
+      const gap = cell * 0.22;
+      ctx.fillRect(
+        i * shardWidth + gap / 2 + drift,
+        cell * 0.16 + Math.abs(drift) * 0.25,
+        Math.max(2, shardWidth - gap),
+        Math.max(2, height * 0.42),
+      );
+    }
+  }
 
   const puffRadius = cell * 1.3;
   const step = puffRadius * 1.35;
   let puffIndex = 0;
   for (let px = step / 2; px < width; px += step) {
     const radius = puffIndex % 2 === 0 ? puffRadius : puffRadius * 0.78;
+    const spread = broken
+      ? (1 - repairProgress) *
+        cell *
+        (puffIndex % 2 === 0 ? -0.85 : 0.85) *
+        (1 + puffIndex * 0.18)
+      : 0;
+    const lift = broken
+      ? Math.sin(now * 0.01 + body.id + puffIndex) * cell * 0.28
+      : 0;
     ctx.fillStyle = puffIndex % 2 === 0 ? cloudColor : puffShade;
     ctx.beginPath();
-    ctx.arc(px, 0, radius, Math.PI, Math.PI * 2);
+    ctx.arc(px + spread, lift, radius, Math.PI, Math.PI * 2);
     ctx.fill();
     puffIndex += 1;
   }
 
   ctx.restore();
+}
+
+export function drawElevatedLedge(
+  ctx: CanvasRenderingContext2D,
+  body: Matter.Body,
+  cell: number,
+  daytime: boolean,
+) {
+  drawFlatCloudPlatform(ctx, body, cell, daytime);
 }
 
 /** How long the pop-in scale animation runs at the start of a feedback's life. */

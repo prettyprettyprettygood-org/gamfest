@@ -70,13 +70,20 @@ import {
 import { getPalette, isESTDaytime } from './heroGame/palette';
 import {
   drawConfetti,
-  drawElevatedLedge,
   drawFeedback,
   drawRingPickup,
   spawnConfetti,
   type ConfettiPiece,
   type FloatingFeedback,
 } from './heroGame/pickupsAndFx';
+import {
+  breakCloudPlatform,
+  createCloudPlatform,
+  drawCloudPlatform,
+  findCloudPlatform,
+  updateCloudPlatform,
+  type CloudPlatform,
+} from './heroGame/clouds';
 import {
   drawSprite,
   pickRandomSprite,
@@ -156,6 +163,7 @@ export default function HeroGame() {
     let roadGround: Matter.Body | null = null;
     let brickLedge: Matter.Body | null = null;
     let elevatedLedge: Matter.Body | null = null;
+    let cloudPlatforms: CloudPlatform[] = [];
     let billboardTop: Matter.Body | null = null;
     let billboardHitbox: Matter.Body | null = null;
     let blueRing: Matter.Body | null = null;
@@ -432,8 +440,8 @@ export default function HeroGame() {
         true,
         getBillboardRenderOptions(now),
       );
-      if (elevatedLedge) {
-        drawElevatedLedge(ctx, elevatedLedge, cell, daytime);
+      for (const cloud of cloudPlatforms) {
+        drawCloudPlatform(ctx, cloud, cell, daytime, now);
       }
       for (const obj of interactiveObjects) {
         drawInteractiveObject(ctx, obj, palette, daytime, cell, now);
@@ -512,9 +520,20 @@ export default function HeroGame() {
       }
 
       updateBrickLedgeCollision();
+      updateCloudPlatforms(performance.now());
       updateWobblingObjects(performance.now());
       updateUndersideBumps(performance.now());
       Engine.update(engine, dt);
+    };
+
+    const updateCloudPlatforms = (now: number) => {
+      if (!playerBody) return;
+      const cell = cellOf(height);
+      for (const cloud of cloudPlatforms) {
+        updateCloudPlatform(cloud, playerBody, now, cell);
+        if (cloud.body.isSensor) supportContacts.delete(cloud.body.id);
+      }
+      canJump = supportContacts.size > 0;
     };
 
     const updateBrickLedgeCollision = () => {
@@ -571,8 +590,8 @@ export default function HeroGame() {
     const isSupportBody = (body: Matter.Body) =>
       body === sidewalkGround ||
       body === roadGround ||
-      body === brickLedge ||
-      body === elevatedLedge ||
+      (body === brickLedge && !body.isSensor) ||
+      (findCloudPlatform(cloudPlatforms, body) !== null && !body.isSensor) ||
       body === billboardTop ||
       (objectsById.has(body.id) && !body.isSensor);
 
@@ -865,6 +884,28 @@ export default function HeroGame() {
       }
     };
 
+    const handleCloudImpact = (
+      impactor: Matter.Body,
+      target: Matter.Body,
+      now: number,
+      playerVelocityY: number,
+    ) => {
+      if (impactor !== playerBody || !playerBody) return;
+      const cloud = findCloudPlatform(cloudPlatforms, target);
+      if (!cloud) return;
+      if (!isSlamming || playerVelocityY < SLAM_IMPACT_MIN_VELOCITY) return;
+
+      breakCloudPlatform(cloud, now);
+      supportContacts.delete(cloud.body.id);
+      canJump = supportContacts.size > 0;
+      Body.setVelocity(playerBody, {
+        x: playerBody.velocity.x,
+        y: Math.max(playerVelocityY, PLAYER_SLAM_VELOCITY * 0.75),
+      });
+      isSlamming = false;
+      audio.playSfx('hitHeavy');
+    };
+
     const handleFallenObjectSidePush = (pair: Matter.Pair) => {
       if (!playerBody) return;
       const target =
@@ -999,6 +1040,8 @@ export default function HeroGame() {
         handleBillboardImpact(pair, now, playerVelocityY);
         handleRingPickup(pair);
         handleFallenObjectSidePush(pair);
+        handleCloudImpact(pair.bodyA, pair.bodyB, now, playerVelocityY);
+        handleCloudImpact(pair.bodyB, pair.bodyA, now, playerVelocityY);
         handleObjectImpact(pair.bodyA, pair.bodyB, now, playerVelocityY);
         handleObjectImpact(pair.bodyB, pair.bodyA, now, playerVelocityY);
       }
@@ -1040,6 +1083,7 @@ export default function HeroGame() {
       roadGround = null;
       brickLedge = null;
       elevatedLedge = null;
+      cloudPlatforms = [];
       billboardTop = null;
       billboardHitbox = null;
       blueRing = null;
@@ -1409,7 +1453,7 @@ export default function HeroGame() {
       const heroLayout = computeHeroLayout(ctx);
       const elevatedLedgeHeight = Math.max(5, cell * 0.8);
       const elevatedLedgeClearance = cell * 0.5;
-      elevatedLedge = Bodies.rectangle(
+      const elevatedCloud = createCloudPlatform(
         Math.max(cell * 15, width * 0.3),
         heroLayout.tagline[0].y -
           playerHeight -
@@ -1417,12 +1461,42 @@ export default function HeroGame() {
           elevatedLedgeHeight / 2,
         cell * 13,
         elevatedLedgeHeight,
-        {
-          isStatic: true,
-          friction: SURFACE_FRICTION,
-          frictionStatic: SURFACE_FRICTION_STATIC,
-        },
       );
+      elevatedLedge = elevatedCloud.body;
+      const clampCloudX = (x: number, cloudWidth: number) =>
+        Math.max(
+          cloudWidth / 2 + cell,
+          Math.min(width - cloudWidth / 2 - cell, x),
+        );
+      const cloudHeight = elevatedLedgeHeight;
+      const skyCloudSpecs = [
+        {
+          x: width * 0.58,
+          y: elevatedLedge.position.y - cell * 7.2,
+          w: cell * 10,
+        },
+        {
+          x: width * 0.76,
+          y: elevatedLedge.position.y - cell * 14.2,
+          w: cell * 8.5,
+        },
+        {
+          x: width * 0.42,
+          y: elevatedLedge.position.y - cell * 21,
+          w: cell * 10.5,
+        },
+      ];
+      cloudPlatforms = [
+        elevatedCloud,
+        ...skyCloudSpecs.map((spec) =>
+          createCloudPlatform(
+            clampCloudX(spec.x, spec.w),
+            spec.y,
+            spec.w,
+            cloudHeight,
+          ),
+        ),
+      ];
       billboardTop = Bodies.rectangle(
         billboard.bbX + billboard.bbWidth / 2,
         billboard.bbY - billboard.frameWidth / 2,
@@ -1515,7 +1589,7 @@ export default function HeroGame() {
         leftWall,
         rightWall,
         brickLedge,
-        elevatedLedge,
+        ...cloudPlatforms.map((cloud) => cloud.body),
         billboardTop,
         billboardHitbox,
         blueRing,
