@@ -120,6 +120,9 @@ export function drawBillboard(
     helpOpen?: boolean;
     screenBroken?: boolean;
     stunned?: boolean;
+    helpHovered?: boolean;
+    helpHoverStartedAt?: number;
+    reducedMotion?: boolean;
     volume?: number;
     musicMuted?: boolean;
     musicTrackIndex?: number;
@@ -306,6 +309,23 @@ export function drawBillboard(
       y: chipY,
       size: chip,
     } = getBillboardHelpButtonBounds(x, y, width, cell);
+    const hovered = options?.helpHovered ?? false;
+    const hoverAge = elapsed - (options?.helpHoverStartedAt ?? elapsed);
+    const flickering =
+      hovered && !options?.reducedMotion && hoverAge >= 0 && hoverAge < 220;
+    const flickerStep = Math.floor(Math.max(0, hoverAge) / 45);
+    const chipAlpha = hovered
+      ? flickering && flickerStep % 2 === 1
+        ? 0.42
+        : 1
+      : 0.35;
+
+    ctx.save();
+    ctx.globalAlpha *= chipAlpha;
+    if (hovered && chipAlpha > 0.8) {
+      ctx.shadowColor = colors.glow;
+      ctx.shadowBlur = Math.max(4, cell * 0.35);
+    }
     ctx.fillStyle = colors.frame;
     ctx.fillRect(chipX, chipY, chip, chip);
     ctx.strokeStyle = colors.glow;
@@ -318,6 +338,7 @@ export function drawBillboard(
     ctx.fillText('?', chipX + chip / 2, chipY + chip / 2 + 1);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
+    ctx.restore();
   }
 }
 

@@ -201,6 +201,8 @@ export default function HeroGame() {
     let billboardHelpOpen = false;
     let billboardScreenBroken = false;
     let billboardStunnedUntil = 0;
+    let billboardHovered = false;
+    let billboardHoverStartedAt = 0;
     let lastBillboardHitAt = -Infinity;
     let billboardScrambleUntil = 0;
     let billboardTypedChars = 0;
@@ -291,6 +293,9 @@ export default function HeroGame() {
           helpOpen: billboardHelpOpen,
           screenBroken: billboardScreenBroken && !billboardStunned,
           stunned: billboardStunned,
+          helpHovered: billboardHovered && !billboardHelpOpen,
+          helpHoverStartedAt: billboardHoverStartedAt,
+          reducedMotion: prefersReducedMotion,
           faceFrame: glitching ? 2 : billboardFaceFrame,
           volume: audio.getVolume(),
           musicMuted: audio.isMusicMuted(),
@@ -348,6 +353,9 @@ export default function HeroGame() {
         helpOpen: billboardHelpOpen,
         screenBroken: billboardScreenBroken && !billboardStunned,
         stunned: billboardStunned,
+        helpHovered: billboardHovered && !billboardHelpOpen,
+        helpHoverStartedAt: billboardHoverStartedAt,
+        reducedMotion: prefersReducedMotion,
         faceFrame:
           t < BILLBOARD_GLITCH_MS
             ? 2
@@ -1224,6 +1232,8 @@ export default function HeroGame() {
       helpOpenedAt = 0;
       billboardScreenBroken = false;
       billboardStunnedUntil = 0;
+      billboardHovered = false;
+      billboardHoverStartedAt = 0;
       lastBillboardHitAt = -Infinity;
       billboardScrambleUntil = 0;
       billboardTypedChars = 0;
@@ -1821,6 +1831,8 @@ export default function HeroGame() {
       billboardFaceFrame = 0;
       billboardScreenBroken = false;
       billboardStunnedUntil = 0;
+      billboardHovered = false;
+      billboardHoverStartedAt = 0;
       lastBillboardHitAt = -Infinity;
       billboardScrambleUntil = 0;
       billboardTypedChars = 0;
@@ -1899,6 +1911,8 @@ export default function HeroGame() {
     const openBillboardHelp = (now: number) => {
       if (billboardHelpOpen) return;
       billboardHelpOpen = true;
+      billboardHovered = false;
+      billboardHoverStartedAt = 0;
       helpOpenedAt = now;
       inputLeft = false;
       inputRight = false;
@@ -2050,6 +2064,16 @@ export default function HeroGame() {
 
         let isInteractive = false;
         if (!billboardHelpOpen) {
+          const isBillboardScreen =
+            point.x >= billboard.bbX &&
+            point.x <= billboard.bbX + billboard.bbWidth &&
+            point.y >= billboard.bbY &&
+            point.y <= billboard.bbY + billboard.bbHeight;
+          if (isBillboardScreen && !billboardHovered) {
+            billboardHoverStartedAt = elapsed;
+          }
+          billboardHovered = isBillboardScreen;
+
           const helpButton = getBillboardHelpButtonBounds(
             billboard.bbX,
             billboard.bbY,
@@ -2062,6 +2086,9 @@ export default function HeroGame() {
             point.y >= helpButton.y &&
             point.y <= helpButton.y + helpButton.size;
         } else {
+          billboardHovered = false;
+          billboardHoverStartedAt = 0;
+
           const closeButton = getHelpCloseButtonBounds(
             billboard.bbX,
             billboard.bbY,
@@ -2125,6 +2152,14 @@ export default function HeroGame() {
         return;
       }
 
+      billboardHovered = false;
+      billboardHoverStartedAt = 0;
+      canvas.style.cursor = state === 'passive' ? 'pointer' : '';
+    };
+
+    const onCanvasPointerLeave = () => {
+      billboardHovered = false;
+      billboardHoverStartedAt = 0;
       canvas.style.cursor = state === 'passive' ? 'pointer' : '';
     };
 
@@ -2168,6 +2203,7 @@ export default function HeroGame() {
 
     canvas.addEventListener('click', onCanvasClick);
     canvas.addEventListener('pointermove', onCanvasPointerMove);
+    canvas.addEventListener('pointerleave', onCanvasPointerLeave);
 
     const tick = (time: number) => {
       frameId = requestAnimationFrame(tick);
@@ -2224,6 +2260,7 @@ export default function HeroGame() {
       window.removeEventListener('hero-time-change', onHeroTimeChange);
       canvas.removeEventListener('click', onCanvasClick);
       canvas.removeEventListener('pointermove', onCanvasPointerMove);
+      canvas.removeEventListener('pointerleave', onCanvasPointerLeave);
       deactivate();
     };
   }, [prefersReducedMotion]);

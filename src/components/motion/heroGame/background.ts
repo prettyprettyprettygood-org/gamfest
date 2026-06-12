@@ -308,6 +308,10 @@ export function drawBackground(
     showControls?: boolean;
     helpOpen?: boolean;
     screenBroken?: boolean;
+    stunned?: boolean;
+    helpHovered?: boolean;
+    helpHoverStartedAt?: number;
+    reducedMotion?: boolean;
     faceFrame?: number;
     volume?: number;
     beforeSkyline?: () => void;
