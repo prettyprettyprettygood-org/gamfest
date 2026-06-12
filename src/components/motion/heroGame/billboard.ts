@@ -31,14 +31,47 @@ export const FACE_FRAMES: ReadonlyArray<
   ],
 ];
 
-export const BILLBOARD_TEXT = 'That happened. It ruled.';
-export const BILLBOARD_MESSAGES = [
-  'That happened.\nIt ruled.',
-  'Oh. You did it.\nHurray!',
-  "Not satisfied?\nOkay, let's see...",
-  'The title was\nload-bearing, btw.',
-  'Happy now?\nYou broke everything.',
+const BILLBOARD_ARROW_MARKER = '<- ';
+const BILLBOARD_ARROW_PIXELS: ReadonlyArray<readonly [number, number]> = [
+  [0, 3],
+  [1, 2],
+  [1, 3],
+  [1, 4],
+  [2, 1],
+  [2, 3],
+  [2, 5],
+  [3, 3],
+  [4, 3],
+  [5, 3],
 ];
+
+export const BILLBOARD_TEXT = 'You made it up\nhere! Nice.';
+export const BILLBOARD_MESSAGES = [
+  'You made it up\nhere! Nice.',
+  'Got the ring?\nDouble jump now!',
+  '<- Climb the\nsigns up there',
+  'Slam unlocked?\nSmash it all!',
+  "You're crushing\nit. Literally.",
+];
+
+function drawBillboardArrow(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+) {
+  const px = Math.max(1, Math.floor(size / 6));
+  const arrowWidth = px * 6;
+  const arrowHeight = px * 7;
+  const startX = x;
+  const startY = y - arrowHeight / 2;
+
+  for (const [col, row] of BILLBOARD_ARROW_PIXELS) {
+    ctx.fillRect(startX + col * px, startY + row * px, px, px);
+  }
+
+  return arrowWidth;
+}
 
 export function getBillboardFrameWidth(cell: number): number {
   return Math.max(3, Math.floor(cell * 0.8));
@@ -168,10 +201,22 @@ export function drawBillboard(
     const message = options?.message ?? BILLBOARD_TEXT;
     const lines = message.split('\n').slice(0, 2);
     if (lines.length > 0) lines[lines.length - 1] += cursor;
+    const arrowSize = Math.max(8, cell * 0.9);
+    const arrowGap = Math.max(3, cell * 0.28);
     const maxW = width - cell * 2;
     let fs = Math.max(8, Math.floor(cell * 1.35));
     ctx.font = `${fs}px 'VT323', monospace`;
-    while (lines.some((line) => ctx.measureText(line).width > maxW) && fs > 8) {
+    const getLineWidth = (line: string) => {
+      if (!line.startsWith(BILLBOARD_ARROW_MARKER)) {
+        return ctx.measureText(line).width;
+      }
+      return (
+        arrowSize +
+        arrowGap +
+        ctx.measureText(line.slice(BILLBOARD_ARROW_MARKER.length)).width
+      );
+    };
+    while (lines.some((line) => getLineWidth(line) > maxW) && fs > 8) {
       fs -= 1;
       ctx.font = `${fs}px 'VT323', monospace`;
     }
@@ -185,7 +230,25 @@ export function drawBillboard(
       Math.floor(cell * 1.6) -
       ((lines.length - 1) * lineHeight) / 2;
     lines.forEach((line, index) => {
-      ctx.fillText(line, x + width / 2, startY + index * lineHeight);
+      const lineY = startY + index * lineHeight;
+      if (line.startsWith(BILLBOARD_ARROW_MARKER)) {
+        const text = line.slice(BILLBOARD_ARROW_MARKER.length);
+        const textWidth = ctx.measureText(text).width;
+        const totalWidth = arrowSize + arrowGap + textWidth;
+        const startX = x + width / 2 - totalWidth / 2;
+
+        ctx.textAlign = 'left';
+        const drawnArrowWidth = drawBillboardArrow(
+          ctx,
+          startX,
+          lineY,
+          arrowSize,
+        );
+        ctx.fillText(text, startX + drawnArrowWidth + arrowGap, lineY);
+        ctx.textAlign = 'center';
+        return;
+      }
+      ctx.fillText(line, x + width / 2, lineY);
     });
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
