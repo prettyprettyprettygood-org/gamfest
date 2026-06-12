@@ -45,13 +45,13 @@ const BILLBOARD_ARROW_PIXELS: ReadonlyArray<readonly [number, number]> = [
   [5, 3],
 ];
 
-export const BILLBOARD_TEXT = 'You made it up\nhere! Nice.';
+export const BILLBOARD_TEXT = 'psst,\ncome here.';
 export const BILLBOARD_MESSAGES = [
-  'You made it up\nhere! Nice.',
-  'Got the ring?\nDouble jump now!',
-  '<- Climb the\nsigns up there',
-  'Slam unlocked?\nSmash it all!',
-  "You're crushing\nit. Literally.",
+  BILLBOARD_TEXT,
+  'Double jump\nunlocked!',
+  '<- Jump over\nthere',
+  'Slam unlocked\nSmash it all!',
+  'You are crushing\nit. Literally!',
 ];
 
 function drawBillboardArrow(
@@ -119,6 +119,8 @@ export function drawBillboard(
     showControls?: boolean;
     helpOpen?: boolean;
     screenBroken?: boolean;
+    volume?: number;
+    musicMuted?: boolean;
   },
 ) {
   const { x, y } = origin;
@@ -159,7 +161,18 @@ export function drawBillboard(
   }
 
   if (options?.helpOpen) {
-    drawBillboardHelp(ctx, x, y, width, height, cell, colors, nightGlow);
+    drawBillboardHelp(
+      ctx,
+      x,
+      y,
+      width,
+      height,
+      cell,
+      colors,
+      nightGlow,
+      options?.volume ?? 0,
+      options?.musicMuted ?? false,
+    );
   } else if (options?.screenBroken) {
     ctx.strokeStyle = colors.glow;
     ctx.lineWidth = Math.max(1, Math.floor(cell * 0.12));
@@ -254,7 +267,7 @@ export function drawBillboard(
     ctx.textBaseline = 'alphabetic';
   }
 
-  if (options?.showControls) {
+  if (options?.showControls && !options?.helpOpen) {
     const {
       x: chipX,
       y: chipY,
@@ -269,11 +282,7 @@ export function drawBillboard(
     ctx.font = `${Math.max(8, Math.floor(cell * 0.8))}px 'Press Start 2P', monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(
-      options.helpOpen ? 'X' : '?',
-      chipX + chip / 2,
-      chipY + chip / 2 + 1,
-    );
+    ctx.fillText('?', chipX + chip / 2, chipY + chip / 2 + 1);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
   }
@@ -293,6 +302,140 @@ export function getBillboardHelpButtonBounds(
   };
 }
 
+const HELP_KEY_ROWS: ReadonlyArray<readonly [string, string]> = [
+  ['MOVE', 'A/D ←→'],
+  ['SPRINT', 'SHIFT'],
+  ['JUMP', 'SPACE'],
+  ['DOUBLE JUMP', 'SPACE x2'],
+  ['SLAM', 'E'],
+  ['DROP DOWN', 'S/↓'],
+  ['EXIT', 'ESC'],
+  ['RESET', 'R'],
+];
+
+export const HELP_VOLUME_STEPS = 5;
+
+/** Key/control rows plus the VOLUME and MUSIC rows drawn below them. */
+const HELP_ROW_COUNT = HELP_KEY_ROWS.length + 2;
+
+/**
+ * Shared panel geometry for the help overlay, including the volume/music
+ * rows' Y positions. The panel expands over the billboard's outer frame
+ * border on every side to make room for the full control list, and rows
+ * are spaced evenly to fill the panel with no leftover space at the bottom.
+ */
+function getHelpLayout(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  cell: number,
+) {
+  const fw = getBillboardFrameWidth(cell);
+  const panelX = x - fw;
+  const panelY = y - fw;
+  const panelW = width + fw * 2;
+  const panelH = height + fw * 2;
+  const px = Math.max(2, Math.floor(cell * 0.18));
+  const headerH = cell * 1.25 + px * 2;
+  const contentH = panelH - headerH - px;
+  const rowGap = contentH / HELP_ROW_COUNT;
+  const rowFont = Math.max(6, Math.floor(rowGap * 0.46));
+  const firstRowY = panelY + headerH + rowGap / 2;
+  const volumeRowY = firstRowY + HELP_KEY_ROWS.length * rowGap;
+  const musicRowY = volumeRowY + rowGap;
+  return {
+    panelX,
+    panelY,
+    panelW,
+    panelH,
+    px,
+    headerH,
+    rowFont,
+    rowGap,
+    firstRowY,
+    volumeRowY,
+    musicRowY,
+  };
+}
+
+/** Hit-test bounds for the 5-segment volume bar drawn on the help overlay's VOLUME row. */
+export function getHelpVolumeBarBounds(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  cell: number,
+) {
+  const { panelX, panelW, volumeRowY, rowFont } = getHelpLayout(
+    x,
+    y,
+    width,
+    height,
+    cell,
+  );
+  const segGap = Math.max(2, Math.floor(cell * 0.14));
+  const segW = Math.max(6, Math.floor(cell * 0.46));
+  const segH = Math.max(7, rowFont + cell * 0.34);
+  const totalW = HELP_VOLUME_STEPS * segW + (HELP_VOLUME_STEPS - 1) * segGap;
+  const startX = panelX + panelW - totalW - cell * 0.46;
+  const segments = Array.from({ length: HELP_VOLUME_STEPS }, (_, i) => ({
+    x: startX + i * (segW + segGap),
+    y: volumeRowY - segH / 2,
+    width: segW,
+    height: segH,
+  }));
+  return { rowY: volumeRowY, segments };
+}
+
+/** Hit-test bounds for the small red close button in the help overlay's header bar. */
+export function getHelpCloseButtonBounds(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  cell: number,
+) {
+  const { panelX, panelY, panelW, px, headerH } = getHelpLayout(
+    x,
+    y,
+    width,
+    height,
+    cell,
+  );
+  const size = headerH - px * 4;
+  return {
+    x: panelX + panelW - size - px * 2,
+    y: panelY + px * 2,
+    size,
+  };
+}
+
+/** Hit-test bounds for the MUSIC mute toggle chip on the help overlay's MUSIC row. */
+export function getHelpMusicToggleBounds(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  cell: number,
+) {
+  const { panelX, panelW, musicRowY, rowFont } = getHelpLayout(
+    x,
+    y,
+    width,
+    height,
+    cell,
+  );
+  const toggleH = Math.max(7, rowFont + cell * 0.34);
+  const toggleW = Math.max(toggleH * 1.8, cell * 1.8);
+  return {
+    x: panelX + panelW - toggleW - cell * 0.46,
+    y: musicRowY - toggleH / 2,
+    width: toggleW,
+    height: toggleH,
+  };
+}
+
 export function drawBillboardHelp(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -302,22 +445,29 @@ export function drawBillboardHelp(
   cell: number,
   colors: { frame: string; screen: string; glow: string; facePixel: string },
   nightGlow: boolean,
+  volume: number,
+  musicMuted: boolean,
 ) {
-  const inset = Math.max(4, Math.floor(cell * 0.42));
-  const px = Math.max(2, Math.floor(cell * 0.18));
-  const panelX = x + inset;
-  const panelY = y + inset;
-  const panelW = width - inset * 2;
-  const panelH = height - inset * 2;
+  const {
+    panelX,
+    panelY,
+    panelW,
+    panelH,
+    px,
+    rowFont,
+    rowGap,
+    firstRowY,
+    volumeRowY,
+    musicRowY,
+  } = getHelpLayout(x, y, width, height, cell);
   const lineColor = nightGlow ? colors.glow : '#0d7a32';
   const textColor = nightGlow ? '#b8ffb0' : '#12331b';
+  const closeColor = nightGlow ? '#ff6b6b' : '#c0392b';
 
   ctx.fillStyle = nightGlow ? '#071807' : '#eaffdf';
   ctx.fillRect(panelX, panelY, panelW, panelH);
 
-  ctx.strokeStyle = lineColor;
   ctx.lineWidth = Math.max(1, Math.floor(cell * 0.1));
-  ctx.strokeRect(panelX + 1, panelY + 1, panelW - 2, panelH - 2);
 
   ctx.fillStyle = colors.frame;
   ctx.fillRect(panelX + px, panelY + px, panelW - px * 2, cell * 1.25);
@@ -327,22 +477,28 @@ export function drawBillboardHelp(
   ctx.textBaseline = 'middle';
   ctx.fillText('HELP', x + width / 2, panelY + px + cell * 0.65);
 
-  const rows = [
-    ['MOVE', 'A/D'],
-    ['SPRINT', 'SHIFT'],
-    ['JUMP', 'SPACE'],
-    ['DOUBLE', 'SPACE'],
-    ['SLAM', 'E'],
-    ['EXIT', 'ESC'],
-    ['RESET', 'R'],
-  ];
-  const rowFont = Math.max(6, Math.floor(cell * 0.42));
-  const rowGap = Math.max(11, Math.floor(cell * 1.05));
-  let rowY = panelY + cell * 2.25;
+  const closeBtn = getHelpCloseButtonBounds(x, y, width, height, cell);
+  ctx.fillStyle = colors.frame;
+  ctx.fillRect(closeBtn.x, closeBtn.y, closeBtn.size, closeBtn.size);
+  ctx.strokeStyle = closeColor;
+  ctx.strokeRect(
+    closeBtn.x + 1,
+    closeBtn.y + 1,
+    closeBtn.size - 2,
+    closeBtn.size - 2,
+  );
+  ctx.fillStyle = closeColor;
+  ctx.font = `${Math.max(7, Math.floor(closeBtn.size * 0.6))}px 'Press Start 2P', monospace`;
+  ctx.fillText(
+    'X',
+    closeBtn.x + closeBtn.size / 2,
+    closeBtn.y + closeBtn.size / 2 + 1,
+  );
 
+  let rowY = firstRowY;
   ctx.font = `${rowFont}px 'Press Start 2P', monospace`;
   ctx.textBaseline = 'middle';
-  for (const [label, key] of rows) {
+  for (const [label, key] of HELP_KEY_ROWS) {
     ctx.textAlign = 'left';
     ctx.fillStyle = textColor;
     ctx.fillText(label, panelX + cell * 0.55, rowY);
@@ -362,6 +518,46 @@ export function drawBillboardHelp(
     ctx.fillText(key, keyX + keyW / 2, rowY + 1);
     rowY += rowGap;
   }
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = textColor;
+  ctx.fillText('VOLUME', panelX + cell * 0.55, volumeRowY);
+
+  const { segments } = getHelpVolumeBarBounds(x, y, width, height, cell);
+  const filled = Math.round(volume * segments.length);
+  segments.forEach((seg, i) => {
+    ctx.fillStyle = i < filled ? colors.glow : colors.frame;
+    ctx.fillRect(seg.x, seg.y, seg.width, seg.height);
+    ctx.strokeStyle = lineColor;
+    ctx.strokeRect(seg.x + 0.5, seg.y + 0.5, seg.width - 1, seg.height - 1);
+  });
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = textColor;
+  ctx.fillText('MUSIC', panelX + cell * 0.55, musicRowY);
+
+  const musicToggle = getHelpMusicToggleBounds(x, y, width, height, cell);
+  ctx.fillStyle = colors.frame;
+  ctx.fillRect(
+    musicToggle.x,
+    musicToggle.y,
+    musicToggle.width,
+    musicToggle.height,
+  );
+  ctx.strokeStyle = lineColor;
+  ctx.strokeRect(
+    musicToggle.x + 1,
+    musicToggle.y + 1,
+    musicToggle.width - 2,
+    musicToggle.height - 2,
+  );
+  ctx.textAlign = 'center';
+  ctx.fillStyle = colors.glow;
+  ctx.fillText(
+    musicMuted ? 'OFF' : 'ON',
+    musicToggle.x + musicToggle.width / 2,
+    musicToggle.y + musicToggle.height / 2 + 1,
+  );
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';

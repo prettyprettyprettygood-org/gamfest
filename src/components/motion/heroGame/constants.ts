@@ -11,7 +11,7 @@ export const HERO_BASELINE_RATIO = 0.85;
 export const FIXED_PHYSICS_DT = 1000 / 60;
 /** Velocity is in px per physics step at 60Hz, so 2 ≈ 120px/s. */
 export const PLAYER_WALK_SPEED = 2;
-export const PLAYER_RUN_SPEED = 3;
+export const PLAYER_RUN_SPEED = 4;
 /** Tuned so an unassisted jump reaches the brick-wall ledge, but not the hero text tier. */
 export const PLAYER_JUMP_VELOCITY = 10.8;
 export const PLAYER_DOUBLE_JUMP_VELOCITY = 12.4;
@@ -47,6 +47,8 @@ export const DAMAGE_SHAKE_MS = 300;
 export const SLAM_DAMAGE = 5;
 /** Jump-bump damage from below: roughly one fifth of a slam. */
 export const BUMP_DAMAGE = 1;
+/** Minimum time between bump hits on the same object, so one jump arc doesn't multi-hit. */
+export const BUMP_HIT_COOLDOWN_MS = 180;
 /** Small spin imparted to objects when they start falling, so stacks tumble unevenly. */
 export const FALL_ANGULAR_VELOCITY = 0.15;
 /** Buttons are heavier than badges, per PRD "Difficulty Tuning" — both relative to player mass. */

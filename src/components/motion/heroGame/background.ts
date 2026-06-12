@@ -287,6 +287,7 @@ export function drawBackground(
     helpOpen?: boolean;
     screenBroken?: boolean;
     faceFrame?: number;
+    volume?: number;
   },
 ) {
   ctx.clearRect(0, 0, width, height);

@@ -2,6 +2,7 @@
 import Button from '../components/Button.astro';
 import Badge from '../components/Badge.astro';
 import HeroGame from '../components/motion/HeroGame';
+import HeroAudioToggle from '../components/motion/HeroAudioToggle';
 import { discordUrl, facebookUrl } from '../data/config';
 
 const isDev = import.meta.env.DEV;
@@ -161,18 +162,21 @@ const isDev = import.meta.env.DEV;
   <p class="hero__restore-hint" aria-hidden="true">
     Press Esc or click outside the hero to restore
   </p>
-  {
-    isDev && (
-      <button
-        id="hero-time-toggle"
-        class="hero-dev-toggle"
-        type="button"
-        aria-label="Toggle hero day/night mode"
-      >
-        ☀ DAY
-      </button>
-    )
-  }
+  <div class="hero-bottom-left-controls">
+    <HeroAudioToggle client:load />
+    {
+      isDev && (
+        <button
+          id="hero-time-toggle"
+          class="hero-dev-toggle"
+          type="button"
+          aria-label="Toggle hero day/night mode"
+        >
+          ☀ DAY
+        </button>
+      )
+    }
+  </div>
 </header>
 
 <script>
@@ -486,12 +490,37 @@ const isDev = import.meta.env.DEV;
     }
   }
 
+  /* Bottom-left controls over the canvas: the dev-only day/night toggle is
+     always shown, but the mute toggle only makes sense once the hero
+     mini-game is active. */
+  .hero-bottom-left-controls {
+    display: none;
+  }
+
+  @media (min-width: 48rem) {
+    .hero-bottom-left-controls {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      position: absolute;
+      bottom: var(--space-3);
+      left: var(--space-3);
+      z-index: 10;
+    }
+
+    .hero-bottom-left-controls :global(.hero-audio-toggle) {
+      display: none;
+    }
+
+    .hero[data-game-active='true']
+      .hero-bottom-left-controls
+      :global(.hero-audio-toggle) {
+      display: inline-flex;
+    }
+  }
+
   /* Dev-only: hero day/night toggle — stripped at build time via isDev */
   .hero-dev-toggle {
-    position: absolute;
-    bottom: var(--space-3);
-    left: var(--space-3);
-    z-index: 10;
     padding: var(--space-1) var(--space-3);
     background: rgb(var(--color-bg-rgb) / 0.72);
     color: var(--color-green);

@@ -17,6 +17,7 @@ import {
   BRACKET_WOBBLE_MS,
   BRICK_LEDGE_THICKNESS_CELLS,
   BUMP_DAMAGE,
+  BUMP_HIT_COOLDOWN_MS,
   BUTTON_MASS_MULTIPLIER,
   CAMERA_FOLLOW_EASE,
   CAMERA_SHIFT_CELLS,
@@ -45,7 +46,11 @@ import {
   FACE_FRAMES,
   getBillboardGeometry,
   getBillboardHelpButtonBounds,
+  getHelpCloseButtonBounds,
+  getHelpMusicToggleBounds,
+  getHelpVolumeBarBounds,
 } from './heroGame/billboard';
+import { getHeroAudio } from './heroGame/audio';
 import {
   BRACKET_CHARS,
   BRACKET_SHIELDED_CHARS,
@@ -111,6 +116,7 @@ export default function HeroGame() {
     const daytime = isESTDaytime();
     const palette = getPalette(daytime);
     document.documentElement.dataset.heroTime = daytime ? 'day' : 'night';
+    const audio = getHeroAudio();
 
     let width = canvas.clientWidth;
     let height = canvas.clientHeight;
@@ -134,6 +140,8 @@ export default function HeroGame() {
     let playerLevel: 'sidewalk' | 'road' = 'sidewalk';
     let roadDropPx = 0;
     let sidewalkRestY = 0;
+    let brickLedgeDropUntil = 0;
+    let brickLedgeRemoved = false;
 
     let engine: Matter.Engine | null = null;
     let playerBody: Matter.Body | null = null;
@@ -163,11 +171,21 @@ export default function HeroGame() {
     let billboardHelpOpen = false;
     let billboardScreenBroken = false;
     let lastBillboardHitAt = -Infinity;
+    let billboardScrambleUntil = 0;
+    let billboardTypedChars = 0;
+    let doubleJumpHintAt = Infinity;
     let finaleTriggered = false;
     let finaleStartedAt = 0;
     let confetti: ConfettiPiece[] = [];
 
     const cellOf = (h: number) => Math.max(3, Math.floor(h / 28));
+    const BILLBOARD_HIT_SCRAMBLE_MS = 240;
+    const DOUBLE_JUMP_HINT_DELAY_MS = 2800;
+    const BILLBOARD_DOUBLE_JUMP_MESSAGE = 1;
+    const BILLBOARD_ARROW_MESSAGE = 2;
+    const BILLBOARD_SLAM_MESSAGE = 3;
+    const BRICK_LEDGE_DROP_MS = 360;
+    const WORDMARK_PLATE_UNLOCK_DELAY_MS = 420;
 
     const addFeedback = (
       text: string,
@@ -190,9 +208,21 @@ export default function HeroGame() {
      */
     const updateCameraOffset = (cell: number) => {
       if (!playerBody) return;
+      const skyFollowTrigger = elevatedLedge
+        ? elevatedLedge.bounds.max.y + cell * 8
+        : 0;
       const playerTop = playerBody.bounds.min.y;
-      if (playerTop < 0) {
-        cameraTarget = cell * CAMERA_SHIFT_CELLS;
+      const playerNearSkyRoute =
+        playerTop < skyFollowTrigger ||
+        (elevatedLedge &&
+          playerBody.position.y < elevatedLedge.bounds.max.y + cell * 4);
+      if (playerNearSkyRoute) {
+        const minimumSkyShift = cell * CAMERA_SHIFT_CELLS;
+        const headroomShift = cell * 2.8 - playerTop;
+        cameraTarget = Math.min(
+          height * 0.48,
+          Math.max(minimumSkyShift, headroomShift),
+        );
       } else if (playerTop > cell * CAMERA_SHIFT_DOWN_TRIGGER_CELLS) {
         cameraTarget = 0;
       }
@@ -204,14 +234,17 @@ export default function HeroGame() {
 
     const getBillboardRenderOptions = (now: number) => {
       if (billboardPhase === 'idle') {
+        const glitching = now < billboardScrambleUntil;
         return {
           message: billboardCurrentText,
-          glitching: false,
+          glitching,
           noiseSeed: now,
           showControls: state === 'active',
           helpOpen: billboardHelpOpen,
           screenBroken: billboardScreenBroken,
-          faceFrame: billboardFaceFrame,
+          faceFrame: glitching ? 2 : billboardFaceFrame,
+          volume: audio.getVolume(),
+          musicMuted: audio.isMusicMuted(),
         };
       }
 
@@ -231,6 +264,10 @@ export default function HeroGame() {
           Math.floor(typingAt / BILLBOARD_TYPE_MS_PER_CHAR),
         ),
       );
+      if (typeChars > billboardTypedChars) {
+        billboardTypedChars = typeChars;
+        audio.playSfx('billboardTalk');
+      }
       const message =
         deleteChars < billboardPreviousText.length
           ? billboardPreviousText.slice(
@@ -264,20 +301,62 @@ export default function HeroGame() {
             : billboardHitCount >= BILLBOARD_MESSAGES.length - 1
               ? 2
               : billboardHitCount % FACE_FRAMES.length,
+        volume: audio.getVolume(),
+        musicMuted: audio.isMusicMuted(),
       };
     };
 
     const triggerBillboardHit = (now: number) => {
-      if (billboardHitCount >= BILLBOARD_MESSAGES.length - 1) return;
       if (now - lastBillboardHitAt < BILLBOARD_HIT_COOLDOWN_MS) return;
+      lastBillboardHitAt = now;
+
+      if (!hasDoubleJump || !hasSlam) {
+        billboardScrambleUntil = now + BILLBOARD_HIT_SCRAMBLE_MS;
+        audio.playSfx('billboardGlitch');
+        return;
+      }
+
+      if (billboardHitCount >= BILLBOARD_MESSAGES.length - 1) return;
 
       billboardHitCount += 1;
       billboardPreviousText = billboardCurrentText;
       billboardTargetText = BILLBOARD_MESSAGES[billboardHitCount];
       billboardPhase = 'transition';
       billboardPhaseStartedAt = now;
-      lastBillboardHitAt = now;
       billboardFaceFrame = 2;
+      billboardTypedChars = 0;
+      audio.playSfx('billboardGlitch');
+    };
+
+    const showBillboardMessage = (messageIndex: number, now: number) => {
+      if (
+        billboardHitCount === messageIndex &&
+        billboardCurrentText === BILLBOARD_MESSAGES[messageIndex]
+      ) {
+        return;
+      }
+
+      billboardHitCount = messageIndex;
+      billboardPreviousText = billboardCurrentText;
+      billboardTargetText = BILLBOARD_MESSAGES[messageIndex];
+      billboardPhase = 'transition';
+      billboardPhaseStartedAt = now;
+      billboardFaceFrame = 2;
+      billboardScrambleUntil = 0;
+      billboardTypedChars = 0;
+      audio.playSfx('billboardGlitch');
+    };
+
+    const updateBillboardTimedHints = (now: number) => {
+      if (
+        hasDoubleJump &&
+        !hasSlam &&
+        now >= doubleJumpHintAt &&
+        billboardHitCount < BILLBOARD_ARROW_MESSAGE
+      ) {
+        showBillboardMessage(BILLBOARD_ARROW_MESSAGE, now);
+        doubleJumpHintAt = Infinity;
+      }
     };
 
     const drawPassiveFrame = () => {
@@ -292,6 +371,7 @@ export default function HeroGame() {
     const drawActiveFrame = (now: number) => {
       const cell = cellOf(height);
       updateCameraOffset(cell);
+      updateBillboardTimedHints(now);
       if (cameraOffsetY > 0) {
         ctx.fillStyle = palette.sky;
         ctx.fillRect(0, 0, width, height);
@@ -386,8 +466,61 @@ export default function HeroGame() {
         playerLevel = 'sidewalk';
       }
 
+      updateBrickLedgeCollision();
       updateWobblingObjects(performance.now());
+      updateUndersideBumps(performance.now());
       Engine.update(engine, dt);
+    };
+
+    const updateBrickLedgeCollision = () => {
+      if (!playerBody || !brickLedge || !engine) return;
+
+      const droppingThrough = performance.now() < brickLedgeDropUntil;
+
+      if (brickLedgeRemoved) {
+        if (droppingThrough) return;
+        Composite.add(engine.world, brickLedge);
+        brickLedgeRemoved = false;
+      }
+
+      const cell = cellOf(height);
+      const horizontallyNear =
+        playerBody.bounds.max.x > brickLedge.bounds.min.x - cell &&
+        playerBody.bounds.min.x < brickLedge.bounds.max.x + cell;
+      const landingFromAbove =
+        !droppingThrough &&
+        horizontallyNear &&
+        playerBody.position.y < brickLedge.position.y &&
+        playerBody.velocity.y >= -0.5;
+
+      brickLedge.isSensor = horizontallyNear && !landingFromAbove;
+    };
+
+    const isPlayerOnBrickLedge = () => {
+      if (!playerBody || !brickLedge) return false;
+
+      const cell = cellOf(height);
+      const horizontallyOverlapping =
+        playerBody.bounds.max.x > brickLedge.bounds.min.x + cell * 0.15 &&
+        playerBody.bounds.min.x < brickLedge.bounds.max.x - cell * 0.15;
+      const bodyAboveLedge = playerBody.position.y < brickLedge.position.y;
+
+      return (
+        horizontallyOverlapping &&
+        bodyAboveLedge &&
+        playerBody.velocity.y >= -0.5
+      );
+    };
+
+    const getWordmarkPlate = () =>
+      interactiveObjects.find((obj) => obj.kind === 'wordmarkPlate') ?? null;
+
+    const areWordmarkLettersUnlocked = (now: number) => {
+      const plate = getWordmarkPlate();
+      return (
+        plate?.state === 'offline' &&
+        now - plate.hitAt >= WORDMARK_PLATE_UNLOCK_DELAY_MS
+      );
     };
 
     const isSupportBody = (body: Matter.Body) =>
@@ -396,7 +529,7 @@ export default function HeroGame() {
       body === brickLedge ||
       body === elevatedLedge ||
       body === billboardTop ||
-      objectsById.has(body.id);
+      (objectsById.has(body.id) && !body.isSensor);
 
     const getPlayerSupportBody = (pair: Matter.Pair) => {
       if (!playerBody) return null;
@@ -438,12 +571,12 @@ export default function HeroGame() {
       isSlamming = false;
       const supportObj = objectsById.get(support.id);
 
-      // Bracket shield (PRD "Resolved Design Decisions → Bracket Shield"):
-      // once all four shielded letters have crumbled, landing on top of a
-      // bracket — and only landing on top — starts its wobble-then-fall.
+      // Once the neon plate is off and its letters have fallen, landing on a
+      // bracket starts its wobble-then-fall.
       if (
         supportObj?.bracket &&
         supportObj.state === 'pinned' &&
+        areWordmarkLettersUnlocked(now) &&
         areShieldedLettersCleared()
       ) {
         supportObj.state = 'wobbling';
@@ -543,10 +676,12 @@ export default function HeroGame() {
       now: number,
     ) => {
       if (obj.kind === 'wordmarkPlate') {
-        obj.state = 'fallen';
+        obj.state = 'offline';
         obj.hitAt = now;
-        if (engine) Composite.remove(engine.world, obj.body);
-        objectsById.delete(obj.body.id);
+        obj.destructible = false;
+        obj.body.isSensor = true;
+        supportContacts.delete(obj.body.id);
+        canJump = supportContacts.size > 0;
         return;
       }
 
@@ -572,14 +707,11 @@ export default function HeroGame() {
     ) => {
       obj.health = Math.max(0, obj.health - damage);
       obj.hitAt = now;
+      obj.hitCount += 1;
+      audio.playSfx(damage >= SLAM_DAMAGE ? 'hitHeavy' : 'hit');
 
       if (obj.health <= 0) {
         crumbleObject(obj, playerVelocityY, now);
-        return;
-      }
-
-      if (obj.shielded && obj.health <= SLAM_DAMAGE) {
-        obj.state = 'shielded';
         return;
       }
 
@@ -588,40 +720,83 @@ export default function HeroGame() {
       }
     };
 
-    const isPlayerBumpingObjectFromBelow = (target: Matter.Body) => {
-      if (!playerBody || playerBody.velocity.y > -2.5) return false;
+    /**
+     * Underside bumps are checked every physics step (not just on
+     * `collisionStart`) so a jump-into-underside hit always registers,
+     * regardless of which exact step Matter's broad/narrow-phase first
+     * reports contact on. `playerBody.velocity.y < 0` (any upward motion)
+     * plus the geometry checks below identify "is this a bump right now";
+     * `lastBumpAt`/`BUMP_HIT_COOLDOWN_MS` stop one jump arc from applying
+     * damage on every step while overlapping — though in practice the bonk
+     * impulse below sends the player back downward on the very next step,
+     * making `velocity.y < 0` false before the cooldown would even matter.
+     */
+    const updateUndersideBumps = (now: number) => {
+      if (!playerBody || playerBody.velocity.y >= 0) return;
 
       const cell = cellOf(height);
-      const horizontalOverlap =
-        target.bounds.max.x > playerBody.bounds.min.x + cell * 0.12 &&
-        target.bounds.min.x < playerBody.bounds.max.x - cell * 0.12;
-      const undersideSlop = Math.max(6, cell * 0.65);
       const playerTop = playerBody.bounds.min.y;
-      const targetBottom = target.bounds.max.y;
-      const undersideContact =
-        targetBottom >= playerTop - undersideSlop &&
-        targetBottom <= playerTop + undersideSlop;
+      const undersideSlop = Math.max(6, cell * 0.65);
 
-      return (
-        horizontalOverlap &&
-        undersideContact &&
-        playerBody.position.y > target.position.y
-      );
+      for (const obj of interactiveObjects) {
+        if (!obj.destructible) continue;
+        if (obj.state !== 'pinned' && obj.state !== 'damaged') continue;
+        if (
+          obj.kind === 'wordmark' &&
+          (obj.shielded || obj.bracket) &&
+          !areWordmarkLettersUnlocked(now)
+        ) {
+          continue;
+        }
+
+        const target = obj.body;
+        const horizontalOverlap =
+          target.bounds.max.x > playerBody.bounds.min.x + cell * 0.12 &&
+          target.bounds.min.x < playerBody.bounds.max.x - cell * 0.12;
+        if (!horizontalOverlap) continue;
+
+        const targetBottom = target.bounds.max.y;
+        const undersideContact =
+          targetBottom >= playerTop - undersideSlop &&
+          targetBottom <= playerTop + undersideSlop;
+        if (!undersideContact || playerBody.position.y <= target.position.y) {
+          continue;
+        }
+
+        if (now - obj.lastBumpAt < BUMP_HIT_COOLDOWN_MS) continue;
+
+        obj.lastBumpAt = now;
+        damageObject(obj, BUMP_DAMAGE, playerBody.velocity.y, now);
+        Body.setVelocity(playerBody, {
+          x: playerBody.velocity.x,
+          y: Math.max(playerBody.velocity.y, 2),
+        });
+      }
     };
 
     /**
-     * Player impacts are the only source of deliberate object damage:
-     * downward slam hits are strong, upward underside bumps are light.
+     * Slam impacts are the only collision-event-driven object damage left —
+     * a deliberate one-shot downward action. Passive "jumped into the
+     * underside" damage is handled per-step by `updateUndersideBumps`
+     * instead, since relying on the single `collisionStart` step proved
+     * unreliable (see docs/milestone-5-cont.md).
+     *
+     * `playerVelocityY` is a snapshot taken once per collision step (see
+     * `handleCollisionStart`), not a live read of `playerBody.velocity.y`,
+     * so an earlier pair's `Body.setVelocity` response in the same step
+     * can't mask a later pair's slam.
      */
     const handleObjectImpact = (
       impactor: Matter.Body,
       target: Matter.Body,
       now: number,
+      playerVelocityY: number,
     ) => {
       const obj = objectsById.get(target.id);
       if (
         !obj ||
         !obj.destructible ||
+        obj.state === 'offline' ||
         obj.state === 'fallen' ||
         obj.state === 'wobbling' ||
         impactor !== playerBody ||
@@ -630,19 +805,18 @@ export default function HeroGame() {
         return;
       }
 
-      if (isSlamming && playerBody.velocity.y >= SLAM_IMPACT_MIN_VELOCITY) {
-        damageObject(obj, SLAM_DAMAGE, playerBody.velocity.y, now);
-        Body.setVelocity(playerBody, { x: playerBody.velocity.x, y: -4 });
-        isSlamming = false;
+      if (
+        obj.kind === 'wordmark' &&
+        (obj.shielded || obj.bracket) &&
+        !areWordmarkLettersUnlocked(now)
+      ) {
         return;
       }
 
-      if (isPlayerBumpingObjectFromBelow(target)) {
-        damageObject(obj, BUMP_DAMAGE, playerBody.velocity.y, now);
-        Body.setVelocity(playerBody, {
-          x: playerBody.velocity.x,
-          y: Math.max(playerBody.velocity.y, 2),
-        });
+      if (isSlamming && playerVelocityY >= SLAM_IMPACT_MIN_VELOCITY) {
+        damageObject(obj, SLAM_DAMAGE, playerVelocityY, now);
+        Body.setVelocity(playerBody, { x: playerBody.velocity.x, y: -4 });
+        isSlamming = false;
       }
     };
 
@@ -659,6 +833,9 @@ export default function HeroGame() {
         hasDoubleJump = true;
         doubleJumpAvailable = true;
         addFeedback('+ Double Jump', 'good');
+        audio.playSfx('pickup');
+        showBillboardMessage(BILLBOARD_DOUBLE_JUMP_MESSAGE, performance.now());
+        doubleJumpHintAt = performance.now() + DOUBLE_JUMP_HINT_DELAY_MS;
       }
       if (
         redRing &&
@@ -669,10 +846,17 @@ export default function HeroGame() {
         redRingCollected = true;
         hasSlam = true;
         addFeedback('+ Slam', 'good', cellOf(height) * 1.15);
+        audio.playSfx('pickup');
+        doubleJumpHintAt = Infinity;
+        showBillboardMessage(BILLBOARD_SLAM_MESSAGE, performance.now());
       }
     };
 
-    const handleBillboardImpact = (pair: Matter.Pair, now: number) => {
+    const handleBillboardImpact = (
+      pair: Matter.Pair,
+      now: number,
+      playerVelocityY: number,
+    ) => {
       if (!playerBody || !billboardHitbox) return;
       const hitBillboard =
         (pair.bodyA === playerBody && pair.bodyB === billboardHitbox) ||
@@ -681,7 +865,7 @@ export default function HeroGame() {
 
       if (
         isSlamming &&
-        playerBody.velocity.y >= SLAM_IMPACT_MIN_VELOCITY &&
+        playerVelocityY >= SLAM_IMPACT_MIN_VELOCITY &&
         !billboardScreenBroken
       ) {
         billboardScreenBroken = true;
@@ -692,6 +876,7 @@ export default function HeroGame() {
         billboardHelpOpen = false;
         Body.setVelocity(playerBody, { x: playerBody.velocity.x, y: -4 });
         isSlamming = false;
+        audio.playSfx('hitHeavy');
         return;
       }
 
@@ -707,12 +892,17 @@ export default function HeroGame() {
       event: Matter.IEventCollision<Matter.Engine>,
     ) => {
       const now = performance.now();
+      // Snapshot once: a single step can produce multiple collision pairs,
+      // and per-pair handlers below call `Body.setVelocity` on the player as
+      // an impact response. Reading `playerBody.velocity.y` live would let an
+      // earlier pair's response mask a later pair's impact in this same step.
+      const playerVelocityY = playerBody?.velocity.y ?? 0;
       for (const pair of event.pairs) {
         addSupportContact(pair, now);
-        handleBillboardImpact(pair, now);
+        handleBillboardImpact(pair, now, playerVelocityY);
         handleRingPickup(pair);
-        handleObjectImpact(pair.bodyA, pair.bodyB, now);
-        handleObjectImpact(pair.bodyB, pair.bodyA, now);
+        handleObjectImpact(pair.bodyA, pair.bodyB, now, playerVelocityY);
+        handleObjectImpact(pair.bodyB, pair.bodyA, now, playerVelocityY);
       }
     };
 
@@ -737,6 +927,7 @@ export default function HeroGame() {
       heroEl?.removeAttribute('data-game-active');
       heroContentEl?.removeAttribute('inert');
       heroContentEl?.removeAttribute('aria-hidden');
+      audio.stopMusic();
 
       if (engine) {
         Events.off(engine, 'collisionStart', handleCollisionStart);
@@ -763,6 +954,8 @@ export default function HeroGame() {
       isSlamming = false;
       cameraOffsetY = 0;
       cameraTarget = 0;
+      brickLedgeDropUntil = 0;
+      brickLedgeRemoved = false;
       floatingFeedbacks = [];
       interactiveObjects = [];
       supportContacts.clear();
@@ -777,6 +970,9 @@ export default function HeroGame() {
       billboardHelpOpen = false;
       billboardScreenBroken = false;
       lastBillboardHitAt = -Infinity;
+      billboardScrambleUntil = 0;
+      billboardTypedChars = 0;
+      doubleJumpHintAt = Infinity;
       finaleTriggered = false;
       finaleStartedAt = 0;
       confetti = [];
@@ -819,12 +1015,14 @@ export default function HeroGame() {
               canJump = false;
               doubleJumpAvailable = hasDoubleJump;
               isSlamming = false;
+              audio.playSfx('jump');
             } else if (hasDoubleJump && doubleJumpAvailable) {
               Body.setVelocity(playerBody, {
                 x: playerBody.velocity.x,
                 y: -PLAYER_DOUBLE_JUMP_VELOCITY,
               });
               doubleJumpAvailable = false;
+              audio.playSfx('doubleJump');
             }
           }
           break;
@@ -843,6 +1041,7 @@ export default function HeroGame() {
               y: PLAYER_SLAM_VELOCITY,
             });
             isSlamming = true;
+            audio.playSfx('slam');
           }
           break;
         case 'Shift':
@@ -853,6 +1052,25 @@ export default function HeroGame() {
         case 's':
         case 'S':
           event.preventDefault();
+          if (
+            !event.repeat &&
+            playerBody &&
+            brickLedge &&
+            engine &&
+            isPlayerOnBrickLedge()
+          ) {
+            brickLedgeDropUntil = performance.now() + BRICK_LEDGE_DROP_MS;
+            Composite.remove(engine.world, brickLedge);
+            brickLedgeRemoved = true;
+            supportContacts.delete(brickLedge.id);
+            canJump = supportContacts.size > 0;
+            Body.setVelocity(playerBody, {
+              x: playerBody.velocity.x,
+              y: Math.max(playerBody.velocity.y, 4),
+            });
+            audio.playSfx('hopDown');
+            break;
+          }
           if (
             !event.repeat &&
             playerLevel === 'sidewalk' &&
@@ -874,6 +1092,7 @@ export default function HeroGame() {
             supportContacts.add(roadGround.id);
             canJump = true;
             squashUntil = performance.now() + LANDING_SQUASH_MS;
+            audio.playSfx('hopDown');
           }
           break;
         case 'ArrowUp':
@@ -901,10 +1120,17 @@ export default function HeroGame() {
             supportContacts.add(sidewalkGround.id);
             canJump = true;
             squashUntil = performance.now() + LANDING_SQUASH_MS;
+            audio.playSfx('hopUp');
           }
           break;
         case 'Escape':
-          if (!event.repeat) deactivate();
+          if (!event.repeat) {
+            if (billboardHelpOpen) {
+              billboardHelpOpen = false;
+            } else {
+              deactivate();
+            }
+          }
           break;
         case 'r':
         case 'R':
@@ -937,7 +1163,13 @@ export default function HeroGame() {
     };
 
     const onDocumentPointerDown = (event: PointerEvent) => {
-      if (event.target !== canvas) deactivate();
+      if (event.target === canvas) return;
+      // Don't exit the game when clicking the mute/day-night controls that
+      // float over the canvas — only an actual outside-click should restore
+      // the hero content.
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('.hero-bottom-left-controls')) return;
+      deactivate();
     };
 
     const bumpObjectsAbovePlayer = () => {
@@ -1154,6 +1386,8 @@ export default function HeroGame() {
       redRingCollected = false;
       cameraOffsetY = 0;
       cameraTarget = 0;
+      brickLedgeDropUntil = 0;
+      brickLedgeRemoved = false;
       floatingFeedbacks = [];
       billboardHitCount = 0;
       billboardPhase = 'idle';
@@ -1164,6 +1398,9 @@ export default function HeroGame() {
       billboardFaceFrame = 0;
       billboardScreenBroken = false;
       lastBillboardHitAt = -Infinity;
+      billboardScrambleUntil = 0;
+      billboardTypedChars = 0;
+      doubleJumpHintAt = Infinity;
       finaleTriggered = false;
       finaleStartedAt = 0;
       confetti = [];
@@ -1185,6 +1422,7 @@ export default function HeroGame() {
       heroContentEl?.setAttribute('aria-hidden', 'true');
 
       setupWorld();
+      audio.playMusic();
 
       window.addEventListener('keydown', onKeyDown);
       window.addEventListener('keyup', onKeyUp);
@@ -1206,6 +1444,7 @@ export default function HeroGame() {
           // keep the current sprite on failure
         });
       setupWorld();
+      audio.playSfx('respawn');
     };
 
     const onCanvasClick = (event: MouseEvent) => {
@@ -1217,21 +1456,79 @@ export default function HeroGame() {
         };
         const cell = cellOf(height);
         const billboard = getBillboardGeometry(width, cell);
-        const helpButton = getBillboardHelpButtonBounds(
+
+        if (!billboardHelpOpen) {
+          const helpButton = getBillboardHelpButtonBounds(
+            billboard.bbX,
+            billboard.bbY,
+            billboard.bbWidth,
+            cell,
+          );
+          if (
+            point.x >= helpButton.x &&
+            point.x <= helpButton.x + helpButton.size &&
+            point.y >= helpButton.y &&
+            point.y <= helpButton.y + helpButton.size
+          ) {
+            event.preventDefault();
+            billboardHelpOpen = true;
+          }
+          return;
+        }
+
+        const closeButton = getHelpCloseButtonBounds(
           billboard.bbX,
           billboard.bbY,
           billboard.bbWidth,
+          billboard.bbHeight,
           cell,
         );
-        const isHelpButton =
-          point.x >= helpButton.x &&
-          point.x <= helpButton.x + helpButton.size &&
-          point.y >= helpButton.y &&
-          point.y <= helpButton.y + helpButton.size;
-
-        if (isHelpButton) {
+        if (
+          point.x >= closeButton.x &&
+          point.x <= closeButton.x + closeButton.size &&
+          point.y >= closeButton.y &&
+          point.y <= closeButton.y + closeButton.size
+        ) {
           event.preventDefault();
-          billboardHelpOpen = !billboardHelpOpen;
+          billboardHelpOpen = false;
+          return;
+        }
+
+        const volumeBar = getHelpVolumeBarBounds(
+          billboard.bbX,
+          billboard.bbY,
+          billboard.bbWidth,
+          billboard.bbHeight,
+          cell,
+        );
+        const segmentIndex = volumeBar.segments.findIndex(
+          (segment) =>
+            point.x >= segment.x &&
+            point.x <= segment.x + segment.width &&
+            point.y >= segment.y &&
+            point.y <= segment.y + segment.height,
+        );
+        if (segmentIndex !== -1) {
+          event.preventDefault();
+          audio.setVolume((segmentIndex + 1) / volumeBar.segments.length);
+          return;
+        }
+
+        const musicToggle = getHelpMusicToggleBounds(
+          billboard.bbX,
+          billboard.bbY,
+          billboard.bbWidth,
+          billboard.bbHeight,
+          cell,
+        );
+        if (
+          point.x >= musicToggle.x &&
+          point.x <= musicToggle.x + musicToggle.width &&
+          point.y >= musicToggle.y &&
+          point.y <= musicToggle.y + musicToggle.height
+        ) {
+          event.preventDefault();
+          audio.toggleMusicMuted();
         }
         return;
       }
@@ -1251,18 +1548,66 @@ export default function HeroGame() {
         };
         const cell = cellOf(height);
         const billboard = getBillboardGeometry(width, cell);
-        const helpButton = getBillboardHelpButtonBounds(
-          billboard.bbX,
-          billboard.bbY,
-          billboard.bbWidth,
-          cell,
-        );
-        const isHelpButton =
-          point.x >= helpButton.x &&
-          point.x <= helpButton.x + helpButton.size &&
-          point.y >= helpButton.y &&
-          point.y <= helpButton.y + helpButton.size;
-        canvas.style.cursor = isHelpButton ? 'pointer' : '';
+
+        let isInteractive = false;
+        if (!billboardHelpOpen) {
+          const helpButton = getBillboardHelpButtonBounds(
+            billboard.bbX,
+            billboard.bbY,
+            billboard.bbWidth,
+            cell,
+          );
+          isInteractive =
+            point.x >= helpButton.x &&
+            point.x <= helpButton.x + helpButton.size &&
+            point.y >= helpButton.y &&
+            point.y <= helpButton.y + helpButton.size;
+        } else {
+          const closeButton = getHelpCloseButtonBounds(
+            billboard.bbX,
+            billboard.bbY,
+            billboard.bbWidth,
+            billboard.bbHeight,
+            cell,
+          );
+          const isCloseButton =
+            point.x >= closeButton.x &&
+            point.x <= closeButton.x + closeButton.size &&
+            point.y >= closeButton.y &&
+            point.y <= closeButton.y + closeButton.size;
+
+          const volumeBar = getHelpVolumeBarBounds(
+            billboard.bbX,
+            billboard.bbY,
+            billboard.bbWidth,
+            billboard.bbHeight,
+            cell,
+          );
+          const isVolumeSegment = volumeBar.segments.some(
+            (segment) =>
+              point.x >= segment.x &&
+              point.x <= segment.x + segment.width &&
+              point.y >= segment.y &&
+              point.y <= segment.y + segment.height,
+          );
+
+          const musicToggle = getHelpMusicToggleBounds(
+            billboard.bbX,
+            billboard.bbY,
+            billboard.bbWidth,
+            billboard.bbHeight,
+            cell,
+          );
+          const isMusicToggle =
+            point.x >= musicToggle.x &&
+            point.x <= musicToggle.x + musicToggle.width &&
+            point.y >= musicToggle.y &&
+            point.y <= musicToggle.y + musicToggle.height;
+
+          isInteractive = isCloseButton || isVolumeSegment || isMusicToggle;
+        }
+
+        canvas.style.cursor = isInteractive ? 'pointer' : '';
         return;
       }
 

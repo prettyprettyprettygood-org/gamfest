@@ -62,7 +62,6 @@
 10.f. alligator snapping turtle
 
 11.a. cow
-11.b. horse
 11.c. donkey
 11.d. mule
 11.e. alpaca

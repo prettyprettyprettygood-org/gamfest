@@ -1,0 +1,30 @@
+.hero-audio-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: rgb(var(--color-bg-rgb) / 0.72);
+  color: var(--color-green);
+  border: var(--border-width) solid var(--color-green);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  line-height: 1.8;
+}
+
+.hero-audio-toggle:hover {
+  background: rgb(var(--color-green-rgb) / 0.12);
+}
+
+.hero-audio-toggle:focus-visible {
+  outline: var(--border-width) solid var(--color-focus-ring);
+  outline-offset: 0.15rem;
+}
+
+.hero-audio-toggle svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
+}

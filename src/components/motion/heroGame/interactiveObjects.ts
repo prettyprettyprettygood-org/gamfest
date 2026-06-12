@@ -5,7 +5,7 @@ import {
   PLAYER_FRICTION,
   SLAM_DAMAGE,
 } from './constants';
-import { hexToRgba, pseudoRandom, type Palette } from './palette';
+import { hexToRgba, type Palette } from './palette';
 
 const { Bodies, Body } = Matter;
 
@@ -27,18 +27,14 @@ export type ObjectVariant =
  * `fallen` covers both the falling and settled-"obstacle" states — both are
  * the same dynamic body, just at different points in its physics journey.
  *
- * Bracket-shield additions (PRD "Resolved Design Decisions → Bracket
- * Shield"): shielded wordmark letters (`f`, `e`, `s`, `t`) pass through
- * `shielded` after enough accumulated damage cracks the shield, before
- * a later hit sends them to `fallen`. Bracket letters (`[`, `]`) skip
- * straight from `pinned` to `wobbling` (briefly oscillating in place) once
- * the player lands on them after the shielded letters have all fallen, then
- * settle into `fallen`.
+ * The `[fest]` plate uses `offline` once its neon shield is powered down:
+ * it keeps rendering as a dim background fixture, but its body no longer
+ * blocks the player and the letters inside can be knocked loose.
  */
 export type ObjectState =
   | 'pinned'
   | 'damaged'
-  | 'shielded'
+  | 'offline'
   | 'wobbling'
   | 'fallen';
 
@@ -51,16 +47,20 @@ export interface InteractiveObject {
   height: number;
   state: ObjectState;
   destructible: boolean;
-  /** `f`, `e`, `s`, `t` — require a shield-cracking hit before they crumble. */
+  /** `f`, `e`, `s`, `t` — locked until the neon plate is powered down. */
   shielded: boolean;
   /** `[` and `]` — immune to slam impacts; only fall when stood on post-shield. */
   bracket: boolean;
-  /** Remaining durability; normal objects use 5, shielded letters use 10. */
+  /** Remaining durability. */
   health: number;
-  /** Starting durability, used for proportional crack severity. */
+  /** Starting durability, used to derive damage state. */
   maxHealth: number;
   /** `performance.now()` of the last state change — drives the damage shake. */
   hitAt: number;
+  /** Number of hits landed so far — drives the flicker count on each hit. */
+  hitCount: number;
+  /** `performance.now()` of the last underside-bump hit — debounces the per-step poll. */
+  lastBumpAt: number;
 }
 
 export interface ObjectLayout {
@@ -97,7 +97,7 @@ export const BUTTON_DEFS: ReadonlyArray<{
   { text: 'FOLLOW ON FACEBOOK', variant: 'secondary' },
 ];
 
-/** PRD "Resolved Design Decisions → Bracket Shield": these letters take 2 hits to crumble. */
+/** Letters held by the `[fest]` neon plate until it is powered down. */
 export const BRACKET_SHIELDED_CHARS = new Set(['f', 'e', 's', 't']);
 /** The brackets themselves — immune to slam, fall only when stood on post-shield. */
 export const BRACKET_CHARS = new Set(['[', ']']);
@@ -284,7 +284,7 @@ export function createInteractiveObject(
     bracket?: boolean;
   } = {},
 ): InteractiveObject {
-  const maxHealth = options.shielded ? SLAM_DAMAGE * 2 : SLAM_DAMAGE;
+  const maxHealth = SLAM_DAMAGE;
   return {
     body: createPinnedBody(layout, mass),
     kind,
@@ -299,6 +299,8 @@ export function createInteractiveObject(
     health: maxHealth,
     maxHealth,
     hitAt: 0,
+    hitCount: 0,
+    lastBumpAt: 0,
   };
 }
 
@@ -317,67 +319,51 @@ export function getAccentColor(
   }
 }
 
-/** Small jagged crack drawn over a `damaged` button/badge. */
-export function drawCrack(
+/** Duration of one flicker beat (one "on" or "off" half-cycle) in ms. */
+const FLICKER_INTERVAL_MS = 70;
+/** Caps how many on/off blinks a single hit's flicker plays. */
+const MAX_FLICKER_BLINKS = 3;
+/** Overlay alpha once a `fallen` object has settled — the "lights are out" look. */
+const POWERED_DOWN_OVERLAY_ALPHA = 0.7;
+/** Overlay alpha during a flicker's "off" beat — the light cutting out briefly. */
+const FLICKER_OFF_OVERLAY_ALPHA = 0.92;
+
+/**
+ * Drives the "lights flickering, then going dark" damage feedback: each hit
+ * plays `hitCount` on/off blinks (capped), then `damaged` objects return to
+ * normal while `fallen` objects stay dark — replacing the old crack overlay.
+ */
+function getPowerOverlayAlpha(
+  state: ObjectState,
+  hitAge: number,
+  hitCount: number,
+): number {
+  if (state !== 'damaged' && state !== 'fallen') return 0;
+
+  const blinks = Math.min(Math.max(1, hitCount), MAX_FLICKER_BLINKS);
+  const totalCycles = blinks * 2;
+  const cycle = Math.floor(hitAge / FLICKER_INTERVAL_MS);
+
+  if (hitAge >= 0 && cycle < totalCycles) {
+    return cycle % 2 === 1 ? FLICKER_OFF_OVERLAY_ALPHA : 0;
+  }
+
+  return state === 'fallen' ? POWERED_DOWN_OVERLAY_ALPHA : 0;
+}
+
+/** Dark overlay used for the flicker/powered-down damage feedback. */
+function drawPowerOverlay(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  cell: number,
-  daytime: boolean,
-  severity = 1,
+  alpha: number,
 ) {
-  const crackSeverity = Math.max(0, Math.min(1, severity));
-  if (crackSeverity <= 0) return;
-
-  const lineWidth = Math.max(
-    1,
-    Math.round(cell * (0.06 + crackSeverity * 0.05)),
-  );
-  const colors = daytime
-    ? ['rgba(0, 0, 0, 0.48)', 'rgba(255, 255, 255, 0.62)']
-    : ['rgba(255, 255, 255, 0.58)', 'rgba(57, 255, 20, 0.75)'];
-  const shards = [
-    [
-      [-0.34, -0.46],
-      [-0.12, -0.14],
-      [-0.25, 0.22],
-      [-0.02, 0.48],
-    ],
-    [
-      [0.28, -0.42],
-      [0.08, -0.08],
-      [0.24, 0.12],
-      [0.12, 0.42],
-    ],
-    [
-      [-0.02, -0.36],
-      [0.16, -0.16],
-      [-0.06, 0.08],
-      [0.2, 0.32],
-    ],
-  ];
-  const visibleShards = Math.max(1, Math.ceil(shards.length * crackSeverity));
-
-  shards.slice(0, visibleShards).forEach((points, index) => {
-    ctx.strokeStyle = colors[index % colors.length];
-    ctx.lineWidth = lineWidth + (index === 1 ? 1 : 0);
-    ctx.beginPath();
-    points.forEach(([x, y], pointIndex) => {
-      const px = x * width * (0.65 + crackSeverity * 0.35);
-      const py = y * height * (0.65 + crackSeverity * 0.35);
-      if (pointIndex === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    });
-    ctx.stroke();
-  });
-
-  if (crackSeverity < 0.35) return;
-
-  ctx.fillStyle = daytime ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 79, 216, 0.6)';
-  ctx.fillRect(-width * 0.2, -height * 0.05, lineWidth * 2, lineWidth * 2);
-  if (crackSeverity >= 0.7) {
-    ctx.fillRect(width * 0.17, height * 0.18, lineWidth * 2, lineWidth * 2);
-  }
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = '#0a0a12';
+  ctx.fillRect(-width / 2, -height / 2, width, height);
+  ctx.restore();
 }
 
 function drawHitFlash(
@@ -410,8 +396,8 @@ function drawHitFlash(
 
 /**
  * Draws a CTA button or badge at its physics body's current position/angle.
- * `damaged` objects jitter briefly and show a crack; `fallen` objects render
- * the same way but follow the body's rotation as they tumble and settle.
+ * `damaged` objects jitter briefly and flicker; `fallen` objects render the
+ * same way but follow the body's rotation as they tumble, then settle dark.
  */
 export function drawInteractiveObject(
   ctx: CanvasRenderingContext2D,
@@ -424,12 +410,11 @@ export function drawInteractiveObject(
   const { body, width, height, variant, label, state, hitAt } = obj;
   const { y } = body.position;
   let { x } = body.position;
-  const damageSeverity =
-    obj.maxHealth > 0 ? Math.max(0, 1 - obj.health / obj.maxHealth) : 0;
   const hitAge = now - hitAt;
   const recentlyHit = hitAge >= 0 && hitAge < DAMAGE_SHAKE_MS;
   const hitFlash =
     recentlyHit && state !== 'fallen' ? 1 - hitAge / DAMAGE_SHAKE_MS : 0;
+  const overlayAlpha = getPowerOverlayAlpha(state, hitAge, obj.hitCount);
 
   if (recentlyHit && state !== 'fallen') {
     const decay = 1 - hitAge / DAMAGE_SHAKE_MS;
@@ -441,47 +426,37 @@ export function drawInteractiveObject(
   ctx.rotate(body.angle);
 
   if (obj.kind === 'wordmarkPlate') {
-    const age = now - hitAt;
-    if (state === 'fallen' && age > 520) {
-      ctx.restore();
-      return;
-    }
+    if (state === 'offline') {
+      const offlineAge = now - hitAt;
+      const settling = Math.min(1, Math.max(0, offlineAge / 520));
+      const flicker =
+        offlineAge < 420 && Math.floor(offlineAge / 70) % 2 === 0 ? 0.18 : 0;
 
-    if (state === 'fallen') {
-      const alpha = Math.max(0, 1 - age / 520);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle =
-        Math.floor(age / 80) % 2 === 0 ? palette.glow : palette.accentMagenta;
-      const shardCount = 14;
-      for (let i = 0; i < shardCount; i++) {
-        const seed = body.id * 31 + i * 11.7;
-        const sx = (pseudoRandom(seed) - 0.5) * width;
-        const sy = (pseudoRandom(seed + 4.2) - 0.5) * height;
-        const driftX = (pseudoRandom(seed + 8.4) - 0.5) * cell * 2.1;
-        const driftY = (pseudoRandom(seed + 12.6) - 0.2) * cell * 1.8;
-        const shardW = Math.max(
-          3,
-          cell * (0.25 + pseudoRandom(seed + 2) * 0.5),
-        );
-        const shardH = Math.max(
-          3,
-          cell * (0.2 + pseudoRandom(seed + 3) * 0.45),
-        );
-        ctx.fillRect(
-          sx + driftX * (age / 520),
-          sy + driftY * (age / 520),
-          shardW,
-          shardH,
-        );
-      }
+      ctx.globalAlpha = 0.24 + flicker * (1 - settling);
+      ctx.fillStyle = daytime ? '#6b7280' : '#9ca3af';
+      ctx.fillRect(-width / 2, -height / 2, width, height);
+      ctx.globalAlpha = 0.32;
+      ctx.strokeStyle = daytime ? '#4b5563' : '#d1d5db';
+      ctx.lineWidth = Math.max(1, Math.round(cell * 0.08));
+      ctx.strokeRect(
+        -width / 2 + ctx.lineWidth / 2,
+        -height / 2 + ctx.lineWidth / 2,
+        width - ctx.lineWidth,
+        height - ctx.lineWidth,
+      );
       ctx.globalAlpha = 1;
       ctx.restore();
       return;
     }
 
-    ctx.fillStyle = palette.glow;
+    const pulse = state === 'damaged' ? 0.65 + Math.sin(now * 0.035) * 0.25 : 1;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle =
+      state === 'damaged' && Math.floor((now - hitAt) / 85) % 2 === 0
+        ? '#ffffff'
+        : palette.glow;
     ctx.fillRect(-width / 2, -height / 2, width, height);
-    drawCrack(ctx, width, height, cell, daytime, damageSeverity);
+    ctx.globalAlpha = 1;
     drawHitFlash(ctx, width, height, palette, daytime, hitFlash);
     ctx.restore();
     return;
@@ -493,24 +468,14 @@ export function drawInteractiveObject(
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // Bracket shield, first hit: pulsing glow + crack until the second hit.
-    if (state === 'shielded') {
-      const pulse = 0.35 + Math.sin(now * 0.012) * 0.25;
-      ctx.save();
-      ctx.globalAlpha = pulse;
-      ctx.fillStyle = palette.glow;
-      ctx.fillRect(-width / 2, -height / 2, width, height);
-      ctx.restore();
-    }
-
     if (variant === 'wordmarkAccent') {
       ctx.fillStyle = palette.frame;
     } else {
       ctx.fillStyle = daytime ? '#1a2030' : '#f4efe6';
     }
     ctx.fillText(label, 0, 1);
-    drawCrack(ctx, width, height, cell, daytime, damageSeverity);
     drawHitFlash(ctx, width, height, palette, daytime, hitFlash);
+    drawPowerOverlay(ctx, width, height, overlayAlpha);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.restore();
@@ -524,8 +489,8 @@ export function drawInteractiveObject(
     ctx.textBaseline = 'middle';
     ctx.fillStyle = daytime ? '#0d7a32' : '#8fe39a';
     ctx.fillText(label, 0, 0);
-    drawCrack(ctx, width, height, cell, daytime, damageSeverity);
     drawHitFlash(ctx, width, height, palette, daytime, hitFlash);
+    drawPowerOverlay(ctx, width, height, overlayAlpha);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.restore();
@@ -575,17 +540,8 @@ export function drawInteractiveObject(
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
 
-  if (damageSeverity > 0 || (state === 'fallen' && now - hitAt < 520)) {
-    drawCrack(
-      ctx,
-      width,
-      height,
-      cell,
-      daytime,
-      state === 'fallen' ? 1 : damageSeverity,
-    );
-  }
   drawHitFlash(ctx, width, height, palette, daytime, hitFlash);
+  drawPowerOverlay(ctx, width, height, overlayAlpha);
 
   ctx.restore();
 }
