@@ -1,5 +1,10 @@
 import Matter from 'matter-js';
-import { DAMAGE_SHAKE_MS, OBJECT_RESTITUTION, PLAYER_FRICTION } from './constants';
+import {
+  DAMAGE_SHAKE_MS,
+  OBJECT_RESTITUTION,
+  PLAYER_FRICTION,
+  SLAM_DAMAGE,
+} from './constants';
 import { hexToRgba, pseudoRandom, type Palette } from './palette';
 
 const { Bodies, Body } = Matter;
@@ -18,18 +23,24 @@ export type ObjectVariant =
   | 'tagline';
 
 /**
- * `pinned` → `damaged` → `fallen` per PRD "Interactive Objects → 1, 2".
+ * `pinned` → `fallen` per PRD "Interactive Objects → 1, 2".
  * `fallen` covers both the falling and settled-"obstacle" states — both are
  * the same dynamic body, just at different points in its physics journey.
  *
  * Bracket-shield additions (PRD "Resolved Design Decisions → Bracket
  * Shield"): shielded wordmark letters (`f`, `e`, `s`, `t`) pass through
- * `shielded` on their first slam hit before a second hit sends them to
- * `fallen`. Bracket letters (`[`, `]`) skip straight from `pinned` to
- * `wobbling` (briefly oscillating in place) once the player lands on them
- * after the shielded letters have all fallen, then settle into `fallen`.
+ * `shielded` after enough accumulated damage cracks the shield, before
+ * a later hit sends them to `fallen`. Bracket letters (`[`, `]`) skip
+ * straight from `pinned` to `wobbling` (briefly oscillating in place) once
+ * the player lands on them after the shielded letters have all fallen, then
+ * settle into `fallen`.
  */
-export type ObjectState = 'pinned' | 'damaged' | 'shielded' | 'wobbling' | 'fallen';
+export type ObjectState =
+  | 'pinned'
+  | 'damaged'
+  | 'shielded'
+  | 'wobbling'
+  | 'fallen';
 
 export interface InteractiveObject {
   body: Matter.Body;
@@ -44,6 +55,10 @@ export interface InteractiveObject {
   shielded: boolean;
   /** `[` and `]` — immune to slam impacts; only fall when stood on post-shield. */
   bracket: boolean;
+  /** Remaining durability; normal objects use 5, shielded letters use 10. */
+  health: number;
+  /** Starting durability, used for proportional crack severity. */
+  maxHealth: number;
   /** `performance.now()` of the last state change — drives the damage shake. */
   hitAt: number;
 }
@@ -65,13 +80,19 @@ export interface HeroLayout {
   buttons: ObjectLayout[];
 }
 
-export const BADGE_DEFS: ReadonlyArray<{ text: string; variant: ObjectVariant }> = [
+export const BADGE_DEFS: ReadonlyArray<{
+  text: string;
+  variant: ObjectVariant;
+}> = [
   { text: 'FREE', variant: 'green' },
   { text: 'IRL', variant: 'amber' },
   { text: 'TBD 2027', variant: 'magenta' },
 ];
 
-export const BUTTON_DEFS: ReadonlyArray<{ text: string; variant: ObjectVariant }> = [
+export const BUTTON_DEFS: ReadonlyArray<{
+  text: string;
+  variant: ObjectVariant;
+}> = [
   { text: 'FOLLOW ON DISCORD', variant: 'primary' },
   { text: 'FOLLOW ON FACEBOOK', variant: 'secondary' },
 ];
@@ -237,7 +258,10 @@ export function computeHeroLayout(ctx: CanvasRenderingContext2D): HeroLayout {
  * "original" values and restores them when a hit later flips the body back
  * to dynamic — setting them in this order is what makes that restore work.
  */
-export function createPinnedBody(layout: ObjectLayout, mass: number): Matter.Body {
+export function createPinnedBody(
+  layout: ObjectLayout,
+  mass: number,
+): Matter.Body {
   const body = Bodies.rectangle(
     layout.x + layout.width / 2,
     layout.y + layout.height / 2,
@@ -260,6 +284,7 @@ export function createInteractiveObject(
     bracket?: boolean;
   } = {},
 ): InteractiveObject {
+  const maxHealth = options.shielded ? SLAM_DAMAGE * 2 : SLAM_DAMAGE;
   return {
     body: createPinnedBody(layout, mass),
     kind,
@@ -271,11 +296,16 @@ export function createInteractiveObject(
     destructible: options.destructible ?? true,
     shielded: options.shielded ?? false,
     bracket: options.bracket ?? false,
+    health: maxHealth,
+    maxHealth,
     hitAt: 0,
   };
 }
 
-export function getAccentColor(variant: ObjectVariant, palette: Palette): string {
+export function getAccentColor(
+  variant: ObjectVariant,
+  palette: Palette,
+): string {
   switch (variant) {
     case 'amber':
     case 'secondary':
@@ -294,8 +324,15 @@ export function drawCrack(
   height: number,
   cell: number,
   daytime: boolean,
+  severity = 1,
 ) {
-  const lineWidth = Math.max(1, Math.round(cell * 0.08));
+  const crackSeverity = Math.max(0, Math.min(1, severity));
+  if (crackSeverity <= 0) return;
+
+  const lineWidth = Math.max(
+    1,
+    Math.round(cell * (0.06 + crackSeverity * 0.05)),
+  );
   const colors = daytime
     ? ['rgba(0, 0, 0, 0.48)', 'rgba(255, 255, 255, 0.62)']
     : ['rgba(255, 255, 255, 0.58)', 'rgba(57, 255, 20, 0.75)'];
@@ -319,23 +356,56 @@ export function drawCrack(
       [0.2, 0.32],
     ],
   ];
+  const visibleShards = Math.max(1, Math.ceil(shards.length * crackSeverity));
 
-  shards.forEach((points, index) => {
+  shards.slice(0, visibleShards).forEach((points, index) => {
     ctx.strokeStyle = colors[index % colors.length];
     ctx.lineWidth = lineWidth + (index === 1 ? 1 : 0);
     ctx.beginPath();
     points.forEach(([x, y], pointIndex) => {
-      const px = x * width;
-      const py = y * height;
+      const px = x * width * (0.65 + crackSeverity * 0.35);
+      const py = y * height * (0.65 + crackSeverity * 0.35);
       if (pointIndex === 0) ctx.moveTo(px, py);
       else ctx.lineTo(px, py);
     });
     ctx.stroke();
   });
 
+  if (crackSeverity < 0.35) return;
+
   ctx.fillStyle = daytime ? 'rgba(0, 0, 0, 0.35)' : 'rgba(255, 79, 216, 0.6)';
   ctx.fillRect(-width * 0.2, -height * 0.05, lineWidth * 2, lineWidth * 2);
-  ctx.fillRect(width * 0.17, height * 0.18, lineWidth * 2, lineWidth * 2);
+  if (crackSeverity >= 0.7) {
+    ctx.fillRect(width * 0.17, height * 0.18, lineWidth * 2, lineWidth * 2);
+  }
+}
+
+function drawHitFlash(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  palette: Palette,
+  daytime: boolean,
+  amount: number,
+) {
+  if (amount <= 0) return;
+
+  ctx.save();
+  ctx.globalAlpha = 0.12 + amount * 0.32;
+  ctx.fillStyle = daytime ? '#ffffff' : palette.glow;
+  ctx.fillRect(-width / 2, -height / 2, width, height);
+  ctx.globalAlpha = 0.35 + amount * 0.45;
+  ctx.strokeStyle = daytime
+    ? 'rgba(255, 255, 255, 0.9)'
+    : palette.accentMagenta;
+  ctx.lineWidth = Math.max(1, Math.min(width, height) * 0.08);
+  ctx.strokeRect(
+    -width / 2 + ctx.lineWidth / 2,
+    -height / 2 + ctx.lineWidth / 2,
+    width - ctx.lineWidth,
+    height - ctx.lineWidth,
+  );
+  ctx.restore();
 }
 
 /**
@@ -354,13 +424,16 @@ export function drawInteractiveObject(
   const { body, width, height, variant, label, state, hitAt } = obj;
   const { y } = body.position;
   let { x } = body.position;
+  const damageSeverity =
+    obj.maxHealth > 0 ? Math.max(0, 1 - obj.health / obj.maxHealth) : 0;
+  const hitAge = now - hitAt;
+  const recentlyHit = hitAge >= 0 && hitAge < DAMAGE_SHAKE_MS;
+  const hitFlash =
+    recentlyHit && state !== 'fallen' ? 1 - hitAge / DAMAGE_SHAKE_MS : 0;
 
-  if (state === 'damaged') {
-    const t = now - hitAt;
-    if (t < DAMAGE_SHAKE_MS) {
-      const decay = 1 - t / DAMAGE_SHAKE_MS;
-      x += Math.sin(t * 0.09) * cell * 0.15 * decay;
-    }
+  if (recentlyHit && state !== 'fallen') {
+    const decay = 1 - hitAge / DAMAGE_SHAKE_MS;
+    x += Math.sin(hitAge * 0.09) * cell * 0.15 * decay;
   }
 
   ctx.save();
@@ -408,7 +481,8 @@ export function drawInteractiveObject(
 
     ctx.fillStyle = palette.glow;
     ctx.fillRect(-width / 2, -height / 2, width, height);
-    if (state === 'damaged') drawCrack(ctx, width, height, cell, daytime);
+    drawCrack(ctx, width, height, cell, daytime, damageSeverity);
+    drawHitFlash(ctx, width, height, palette, daytime, hitFlash);
     ctx.restore();
     return;
   }
@@ -435,9 +509,8 @@ export function drawInteractiveObject(
       ctx.fillStyle = daytime ? '#1a2030' : '#f4efe6';
     }
     ctx.fillText(label, 0, 1);
-    if (state === 'shielded') {
-      drawCrack(ctx, width, height, cell, daytime);
-    }
+    drawCrack(ctx, width, height, cell, daytime, damageSeverity);
+    drawHitFlash(ctx, width, height, palette, daytime, hitFlash);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.restore();
@@ -451,6 +524,8 @@ export function drawInteractiveObject(
     ctx.textBaseline = 'middle';
     ctx.fillStyle = daytime ? '#0d7a32' : '#8fe39a';
     ctx.fillText(label, 0, 0);
+    drawCrack(ctx, width, height, cell, daytime, damageSeverity);
+    drawHitFlash(ctx, width, height, palette, daytime, hitFlash);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
     ctx.restore();
@@ -500,9 +575,17 @@ export function drawInteractiveObject(
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
 
-  if (state === 'damaged' || (state === 'fallen' && now - hitAt < 520)) {
-    drawCrack(ctx, width, height, cell, daytime);
+  if (damageSeverity > 0 || (state === 'fallen' && now - hitAt < 520)) {
+    drawCrack(
+      ctx,
+      width,
+      height,
+      cell,
+      daytime,
+      state === 'fallen' ? 1 : damageSeverity,
+    );
   }
+  drawHitFlash(ctx, width, height, palette, daytime, hitFlash);
 
   ctx.restore();
 }

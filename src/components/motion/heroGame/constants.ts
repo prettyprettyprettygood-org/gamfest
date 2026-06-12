@@ -43,6 +43,10 @@ export const FEEDBACK_MS = 1450;
 export const OBJECT_RESTITUTION = 0.3;
 /** How long the "damaged" shake/crack animation plays after a hit. */
 export const DAMAGE_SHAKE_MS = 300;
+/** Slam impact damage: one full normal-object health bar. */
+export const SLAM_DAMAGE = 5;
+/** Jump-bump damage from below: roughly one fifth of a slam. */
+export const BUMP_DAMAGE = 1;
 /** Small spin imparted to objects when they start falling, so stacks tumble unevenly. */
 export const FALL_ANGULAR_VELOCITY = 0.15;
 /** Buttons are heavier than badges, per PRD "Difficulty Tuning" — both relative to player mass. */

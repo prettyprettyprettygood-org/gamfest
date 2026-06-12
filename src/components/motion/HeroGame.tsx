@@ -16,6 +16,7 @@ import {
   BRACKET_WOBBLE_CYCLES,
   BRACKET_WOBBLE_MS,
   BRICK_LEDGE_THICKNESS_CELLS,
+  BUMP_DAMAGE,
   BUTTON_MASS_MULTIPLIER,
   CAMERA_FOLLOW_EASE,
   CAMERA_SHIFT_CELLS,
@@ -34,6 +35,7 @@ import {
   PLAYER_SLAM_VELOCITY,
   PLAYER_SPAWN_X_CELLS,
   PLAYER_WALK_SPEED,
+  SLAM_DAMAGE,
   SLAM_IMPACT_MIN_VELOCITY,
   SPAWN_DROP_CELLS,
 } from './heroGame/constants';
@@ -535,10 +537,81 @@ export default function HeroGame() {
       }
     };
 
+    const crumbleObject = (
+      obj: InteractiveObject,
+      playerVelocityY: number,
+      now: number,
+    ) => {
+      if (obj.kind === 'wordmarkPlate') {
+        obj.state = 'fallen';
+        obj.hitAt = now;
+        if (engine) Composite.remove(engine.world, obj.body);
+        objectsById.delete(obj.body.id);
+        return;
+      }
+
+      obj.state = 'fallen';
+      obj.hitAt = now;
+      Body.setStatic(obj.body, false);
+      Body.setVelocity(obj.body, {
+        x: (Math.random() - 0.5) * 5,
+        y: Math.max(2, playerVelocityY * 0.35),
+      });
+      Body.setAngularVelocity(
+        obj.body,
+        (Math.random() - 0.5) * FALL_ANGULAR_VELOCITY * 2.5,
+      );
+      checkFinale(now);
+    };
+
+    const damageObject = (
+      obj: InteractiveObject,
+      damage: number,
+      playerVelocityY: number,
+      now: number,
+    ) => {
+      obj.health = Math.max(0, obj.health - damage);
+      obj.hitAt = now;
+
+      if (obj.health <= 0) {
+        crumbleObject(obj, playerVelocityY, now);
+        return;
+      }
+
+      if (obj.shielded && obj.health <= SLAM_DAMAGE) {
+        obj.state = 'shielded';
+        return;
+      }
+
+      if (obj.health < obj.maxHealth) {
+        obj.state = 'damaged';
+      }
+    };
+
+    const isPlayerBumpingObjectFromBelow = (target: Matter.Body) => {
+      if (!playerBody || playerBody.velocity.y > -2.5) return false;
+
+      const cell = cellOf(height);
+      const horizontalOverlap =
+        target.bounds.max.x > playerBody.bounds.min.x + cell * 0.12 &&
+        target.bounds.min.x < playerBody.bounds.max.x - cell * 0.12;
+      const undersideSlop = Math.max(6, cell * 0.65);
+      const playerTop = playerBody.bounds.min.y;
+      const targetBottom = target.bounds.max.y;
+      const undersideContact =
+        targetBottom >= playerTop - undersideSlop &&
+        targetBottom <= playerTop + undersideSlop;
+
+      return (
+        horizontalOverlap &&
+        undersideContact &&
+        playerBody.position.y > target.position.y
+      );
+    };
+
     /**
-     * Crumbles a target only when struck by a slam-speed player impact.
-     * Ordinary walking, landing, and object cascades remain safe for the
-     * climb route; the endgame destruction is deliberately ability-gated.
+     * Player impacts are the only source of deliberate object damage:
+     * downward slam hits are strong, upward underside bumps are light.
      */
     const handleObjectImpact = (
       impactor: Matter.Body,
@@ -550,54 +623,27 @@ export default function HeroGame() {
         !obj ||
         !obj.destructible ||
         obj.state === 'fallen' ||
-        obj.state === 'wobbling'
+        obj.state === 'wobbling' ||
+        impactor !== playerBody ||
+        !playerBody
       ) {
         return;
       }
 
-      const isPlayerImpact = impactor === playerBody;
-      if (
-        !isPlayerImpact ||
-        !playerBody ||
-        !isSlamming ||
-        playerBody.velocity.y < SLAM_IMPACT_MIN_VELOCITY
-      ) {
-        return;
-      }
-
-      if (obj.kind === 'wordmarkPlate') {
-        obj.state = 'fallen';
-        obj.hitAt = now;
-        if (engine) Composite.remove(engine.world, obj.body);
-        objectsById.delete(obj.body.id);
+      if (isSlamming && playerBody.velocity.y >= SLAM_IMPACT_MIN_VELOCITY) {
+        damageObject(obj, SLAM_DAMAGE, playerBody.velocity.y, now);
         Body.setVelocity(playerBody, { x: playerBody.velocity.x, y: -4 });
         isSlamming = false;
         return;
       }
 
-      // Bracket shield, first hit: crack the shield instead of crumbling.
-      if (obj.shielded && obj.state === 'pinned') {
-        obj.state = 'shielded';
-        obj.hitAt = now;
-        Body.setVelocity(playerBody, { x: playerBody.velocity.x, y: -4 });
-        isSlamming = false;
-        return;
+      if (isPlayerBumpingObjectFromBelow(target)) {
+        damageObject(obj, BUMP_DAMAGE, playerBody.velocity.y, now);
+        Body.setVelocity(playerBody, {
+          x: playerBody.velocity.x,
+          y: Math.max(playerBody.velocity.y, 2),
+        });
       }
-
-      obj.state = 'fallen';
-      obj.hitAt = now;
-      Body.setStatic(obj.body, false);
-      Body.setVelocity(obj.body, {
-        x: (Math.random() - 0.5) * 5,
-        y: Math.max(2, playerBody.velocity.y * 0.35),
-      });
-      Body.setAngularVelocity(
-        obj.body,
-        (Math.random() - 0.5) * FALL_ANGULAR_VELOCITY * 2.5,
-      );
-      Body.setVelocity(playerBody, { x: playerBody.velocity.x, y: -4 });
-      isSlamming = false;
-      checkFinale(now);
     };
 
     const handleRingPickup = (pair: Matter.Pair) => {
