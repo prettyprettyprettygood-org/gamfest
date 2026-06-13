@@ -8,9 +8,7 @@ const QUERY = '(prefers-reduced-motion: reduce)';
  * motion degrades together (PRD §9/§10, CLAUDE.md a11y rules).
  */
 export function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia(QUERY).matches,
-  );
+  const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
     const mql = window.matchMedia(QUERY);

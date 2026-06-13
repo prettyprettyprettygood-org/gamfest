@@ -33,10 +33,7 @@ export default function Reveal({
   className,
 }: RevealProps) {
   const prefersReducedMotion = usePrefersReducedMotion();
-  const [isDesktop, setIsDesktop] = useState(
-    () =>
-      typeof window !== 'undefined' && window.matchMedia(DESKTOP_QUERY).matches,
-  );
+  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
     const mql = window.matchMedia(DESKTOP_QUERY);
