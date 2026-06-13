@@ -8,8 +8,8 @@ const VOLUME_KEY = 'heroGameAudioVolume';
 const MUSIC_MUTED_KEY = 'heroGameMusicMuted';
 const MUSIC_TRACK_INDEX_KEY = 'heroGameMusicTrackIndex';
 
-/** CLAUDE.md a11y rule: audio starts muted until the player opts in. */
-const DEFAULT_MUTED = true;
+/** First-time players hear audio after pressing Play; their mute choice persists. */
+const DEFAULT_MUTED = false;
 const DEFAULT_VOLUME = 0.6;
 const DEFAULT_MUSIC_MUTED = false;
 /** Background music sits well under SFX/master level so it stays "background". */
@@ -335,8 +335,8 @@ const SFX_BUILDERS: Record<
 /**
  * Shared per-page audio controller for the hero mini-game: synthesizes 8-bit
  * SFX via the Web Audio API, plays/loops the background track, and persists
- * a single mute flag + volume level (CLAUDE.md: muted by default, never
- * autoplay with sound, persist choice in localStorage). One instance is
+ * a single mute flag + volume level (sound starts after the Play gesture,
+ * persist choice in localStorage). One instance is
  * shared by the canvas (`HeroGame`) and the always-visible mute control
  * (`HeroAudioToggle`).
  */

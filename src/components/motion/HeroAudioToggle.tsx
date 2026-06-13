@@ -3,12 +3,12 @@ import { getHeroAudio } from './heroGame/audio';
 import './HeroAudioToggle.css';
 
 /**
- * Always-visible mute control for the hero mini-game (CLAUDE.md a11y rule).
+ * Always-visible mute control for the hero mini-game.
  * Mutes both the looping background track and every synthesized SFX via the
  * shared `HeroAudioEngine` singleton.
  */
 export default function HeroAudioToggle() {
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(false);
 
   useEffect(() => {
     const audio = getHeroAudio();
