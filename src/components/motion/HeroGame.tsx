@@ -25,7 +25,6 @@ import {
   CAMERA_SHIFT_CELLS,
   CAMERA_SHIFT_DOWN_TRIGGER_CELLS,
   FALL_ANGULAR_VELOCITY,
-  FEEDBACK_MS,
   FINALE_TEXT,
   FIXED_PHYSICS_DT,
   FRAME_DURATION,
@@ -582,9 +581,6 @@ export default function HeroGame() {
         );
       }
       ctx.restore();
-      floatingFeedbacks = floatingFeedbacks.filter(
-        (feedback) => now - feedback.startedAt < FEEDBACK_MS,
-      );
       drawFeedback(ctx, floatingFeedbacks, width, height, cell, now);
       drawConfetti(ctx, confetti, width, height);
       drawFinaleBanner(now);
@@ -1211,7 +1207,6 @@ export default function HeroGame() {
       heroEl?.removeAttribute('data-game-active');
       heroContentEl?.removeAttribute('inert');
       heroContentEl?.removeAttribute('aria-hidden');
-      audio.stopStarPowerMusic();
       audio.stopMusic();
 
       if (engine) {

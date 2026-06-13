@@ -273,15 +273,6 @@ export function drawFlatCloudPlatform(
   ctx.restore();
 }
 
-export function drawElevatedLedge(
-  ctx: CanvasRenderingContext2D,
-  body: Matter.Body,
-  cell: number,
-  daytime: boolean,
-) {
-  drawFlatCloudPlatform(ctx, body, cell, daytime);
-}
-
 /** How long the pop-in scale animation runs at the start of a feedback's life. */
 const FEEDBACK_POP_MS = 180;
 
