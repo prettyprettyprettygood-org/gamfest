@@ -45,19 +45,7 @@ export default function VideoPlayer({ src, class: className }: Props) {
   };
 
   return (
-    <div
-      className={`video-player${className ? ` ${className}` : ''}`}
-      onClick={togglePlay}
-      role="button"
-      tabIndex={0}
-      aria-label={isPlaying ? 'Pause video' : 'Play video'}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          togglePlay();
-        }
-      }}
-    >
+    <div className={`video-player${className ? ` ${className}` : ''}`}>
       <video
         ref={videoRef}
         src={src}
@@ -68,8 +56,11 @@ export default function VideoPlayer({ src, class: className }: Props) {
       />
 
       {/* Full overlay — visible when paused, fades away when playing */}
-      <div
+      <button
+        type="button"
         className={`video-player__overlay${isPlaying ? ' video-player__overlay--playing' : ''}`}
+        onClick={togglePlay}
+        aria-label={isPlaying ? 'Pause video' : 'Play video'}
       >
         <svg
           className="video-player__play-icon"
@@ -79,13 +70,12 @@ export default function VideoPlayer({ src, class: className }: Props) {
         >
           <path d="M8 5v14l11-7z" />
         </svg>
-      </div>
+      </button>
 
       {/* Bottom controls bar — slides up on hover */}
       <div
         className="video-player__controls"
         role="none"
-        onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
         <button
