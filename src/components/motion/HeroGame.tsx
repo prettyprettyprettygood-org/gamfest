@@ -104,6 +104,25 @@ import {
 const { Engine, Bodies, Body, Composite, Events } = Matter;
 
 type GameState = 'passive' | 'active';
+type CanvasPoint = {
+  x: number;
+  y: number;
+};
+type HitTestRect = {
+  x: number;
+  y: number;
+} & ({ width: number; height: number } | { size: number });
+
+function isPointInRect(point: CanvasPoint, rect: HitTestRect) {
+  const rectWidth = 'size' in rect ? rect.size : rect.width;
+  const rectHeight = 'size' in rect ? rect.size : rect.height;
+  return (
+    point.x >= rect.x &&
+    point.x <= rect.x + rectWidth &&
+    point.y >= rect.y &&
+    point.y <= rect.y + rectHeight
+  );
+}
 
 export default function HeroGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -427,6 +446,22 @@ export default function HeroGame() {
       );
     };
 
+    const startBillboardTransition = (
+      messageIndex: number,
+      now: number,
+      resetScramble = false,
+    ) => {
+      billboardHitCount = messageIndex;
+      billboardPreviousText = billboardCurrentText;
+      billboardTargetText = BILLBOARD_MESSAGES[messageIndex];
+      billboardPhase = 'transition';
+      billboardPhaseStartedAt = now;
+      billboardFaceFrame = 2;
+      if (resetScramble) billboardScrambleUntil = 0;
+      billboardTypedChars = 0;
+      audio.playSfx('billboardGlitch');
+    };
+
     const triggerBillboardHit = (now: number) => {
       if (now - lastBillboardHitAt < BILLBOARD_HIT_COOLDOWN_MS) return;
       lastBillboardHitAt = now;
@@ -439,14 +474,7 @@ export default function HeroGame() {
 
       if (billboardHitCount >= BILLBOARD_MESSAGES.length - 1) return;
 
-      billboardHitCount += 1;
-      billboardPreviousText = billboardCurrentText;
-      billboardTargetText = BILLBOARD_MESSAGES[billboardHitCount];
-      billboardPhase = 'transition';
-      billboardPhaseStartedAt = now;
-      billboardFaceFrame = 2;
-      billboardTypedChars = 0;
-      audio.playSfx('billboardGlitch');
+      startBillboardTransition(billboardHitCount + 1, now);
     };
 
     const showBillboardMessage = (messageIndex: number, now: number) => {
@@ -457,15 +485,7 @@ export default function HeroGame() {
         return;
       }
 
-      billboardHitCount = messageIndex;
-      billboardPreviousText = billboardCurrentText;
-      billboardTargetText = BILLBOARD_MESSAGES[messageIndex];
-      billboardPhase = 'transition';
-      billboardPhaseStartedAt = now;
-      billboardFaceFrame = 2;
-      billboardScrambleUntil = 0;
-      billboardTypedChars = 0;
-      audio.playSfx('billboardGlitch');
+      startBillboardTransition(messageIndex, now, true);
     };
 
     const updateBillboardTimedHints = (now: number) => {
@@ -1983,12 +2003,7 @@ export default function HeroGame() {
             billboard.bbWidth,
             cell,
           );
-          if (
-            point.x >= helpButton.x &&
-            point.x <= helpButton.x + helpButton.size &&
-            point.y >= helpButton.y &&
-            point.y <= helpButton.y + helpButton.size
-          ) {
+          if (isPointInRect(point, helpButton)) {
             event.preventDefault();
             openBillboardHelp(performance.now());
           }
@@ -2002,12 +2017,7 @@ export default function HeroGame() {
           billboard.bbHeight,
           cell,
         );
-        if (
-          point.x >= closeButton.x &&
-          point.x <= closeButton.x + closeButton.size &&
-          point.y >= closeButton.y &&
-          point.y <= closeButton.y + closeButton.size
-        ) {
+        if (isPointInRect(point, closeButton)) {
           event.preventDefault();
           closeBillboardHelp(performance.now());
           return;
@@ -2021,11 +2031,7 @@ export default function HeroGame() {
           cell,
         );
         const segmentIndex = volumeBar.segments.findIndex(
-          (segment) =>
-            point.x >= segment.x &&
-            point.x <= segment.x + segment.width &&
-            point.y >= segment.y &&
-            point.y <= segment.y + segment.height,
+          (segment) => isPointInRect(point, segment),
         );
         if (segmentIndex !== -1) {
           event.preventDefault();
@@ -2040,12 +2046,7 @@ export default function HeroGame() {
           billboard.bbHeight,
           cell,
         );
-        if (
-          point.x >= musicToggle.x &&
-          point.x <= musicToggle.x + musicToggle.width &&
-          point.y >= musicToggle.y &&
-          point.y <= musicToggle.y + musicToggle.height
-        ) {
+        if (isPointInRect(point, musicToggle)) {
           event.preventDefault();
           audio.toggleMusicMuted();
           return;
@@ -2059,12 +2060,7 @@ export default function HeroGame() {
           cell,
           `< ${audio.getMusicTrackIndex() + 1}/${audio.getMusicTrackCount()} >`,
         );
-        if (
-          point.x >= songSelector.x &&
-          point.x <= songSelector.x + songSelector.width &&
-          point.y >= songSelector.y &&
-          point.y <= songSelector.y + songSelector.height
-        ) {
+        if (isPointInRect(point, songSelector)) {
           event.preventDefault();
           const direction =
             point.x < songSelector.x + songSelector.width / 2 ? -1 : 1;
@@ -2091,11 +2087,12 @@ export default function HeroGame() {
 
         let isInteractive = false;
         if (!billboardHelpOpen) {
-          const isBillboardScreen =
-            point.x >= billboard.bbX &&
-            point.x <= billboard.bbX + billboard.bbWidth &&
-            point.y >= billboard.bbY &&
-            point.y <= billboard.bbY + billboard.bbHeight;
+          const isBillboardScreen = isPointInRect(point, {
+            x: billboard.bbX,
+            y: billboard.bbY,
+            width: billboard.bbWidth,
+            height: billboard.bbHeight,
+          });
           if (isBillboardScreen && !billboardHovered) {
             billboardHoverStartedAt = elapsed;
           }
@@ -2107,11 +2104,7 @@ export default function HeroGame() {
             billboard.bbWidth,
             cell,
           );
-          isInteractive =
-            point.x >= helpButton.x &&
-            point.x <= helpButton.x + helpButton.size &&
-            point.y >= helpButton.y &&
-            point.y <= helpButton.y + helpButton.size;
+          isInteractive = isPointInRect(point, helpButton);
         } else {
           billboardHovered = false;
           billboardHoverStartedAt = 0;
@@ -2123,11 +2116,7 @@ export default function HeroGame() {
             billboard.bbHeight,
             cell,
           );
-          const isCloseButton =
-            point.x >= closeButton.x &&
-            point.x <= closeButton.x + closeButton.size &&
-            point.y >= closeButton.y &&
-            point.y <= closeButton.y + closeButton.size;
+          const isCloseButton = isPointInRect(point, closeButton);
 
           const volumeBar = getHelpVolumeBarBounds(
             billboard.bbX,
@@ -2137,11 +2126,7 @@ export default function HeroGame() {
             cell,
           );
           const isVolumeSegment = volumeBar.segments.some(
-            (segment) =>
-              point.x >= segment.x &&
-              point.x <= segment.x + segment.width &&
-              point.y >= segment.y &&
-              point.y <= segment.y + segment.height,
+            (segment) => isPointInRect(point, segment),
           );
 
           const musicToggle = getHelpMusicToggleBounds(
@@ -2151,11 +2136,7 @@ export default function HeroGame() {
             billboard.bbHeight,
             cell,
           );
-          const isMusicToggle =
-            point.x >= musicToggle.x &&
-            point.x <= musicToggle.x + musicToggle.width &&
-            point.y >= musicToggle.y &&
-            point.y <= musicToggle.y + musicToggle.height;
+          const isMusicToggle = isPointInRect(point, musicToggle);
 
           const songSelector = getHelpSongSelectorBounds(
             billboard.bbX,
@@ -2165,11 +2146,7 @@ export default function HeroGame() {
             cell,
             `< ${audio.getMusicTrackIndex() + 1}/${audio.getMusicTrackCount()} >`,
           );
-          const isSongSelector =
-            point.x >= songSelector.x &&
-            point.x <= songSelector.x + songSelector.width &&
-            point.y >= songSelector.y &&
-            point.y <= songSelector.y + songSelector.height;
+          const isSongSelector = isPointInRect(point, songSelector);
 
           isInteractive =
             isCloseButton || isVolumeSegment || isMusicToggle || isSongSelector;
