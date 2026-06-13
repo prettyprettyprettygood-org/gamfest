@@ -5,9 +5,17 @@ interface Props {
   question: string;
   answer: string;
   coinSrc: string;
+  imageSrc?: string;
+  imageAlt?: string;
 }
 
-export default function LevelUpFaq({ question, answer, coinSrc }: Props) {
+export default function LevelUpFaq({
+  question,
+  answer,
+  coinSrc,
+  imageSrc,
+  imageAlt = '',
+}: Props) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [particles, setParticles] = useState<number[]>([]);
@@ -42,7 +50,21 @@ export default function LevelUpFaq({ question, answer, coinSrc }: Props) {
     <>
       <details ref={detailsRef} className="faq-item">
         <summary className="faq-item__question">{question}</summary>
-        <p className="faq-item__answer">{answer}</p>
+        {imageSrc ? (
+          <div className="faq-item__body--images">
+            <p className="faq-item__answer">{answer}</p>
+            <div className="faq-item__images">
+              <img
+                className="level-up-faq__star"
+                src={imageSrc}
+                alt={imageAlt}
+                loading="lazy"
+              />
+            </div>
+          </div>
+        ) : (
+          <p className="faq-item__answer">{answer}</p>
+        )}
       </details>
       {particles.map((id) => (
         <div key={id} className="level-up-particle" aria-hidden="true">

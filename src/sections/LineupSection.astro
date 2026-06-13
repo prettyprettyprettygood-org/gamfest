@@ -204,9 +204,10 @@ const lineupExtras = [
 </Section>
 
 <script>
-  // Stagger the "Also unlocked" list items into view on scroll
+  // Stagger the "Also unlocked" list items into view on desktop scroll.
   const staggerLists = document.querySelectorAll<HTMLElement>('[data-stagger]');
-  if (staggerLists.length) {
+  const staggerMotion = window.matchMedia('(min-width: 48rem)');
+  if (staggerLists.length && staggerMotion.matches) {
     const obs = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
@@ -408,10 +409,10 @@ const lineupExtras = [
     border-bottom: var(--border-width) solid var(--color-border);
     border-left: var(--border-width) solid transparent;
     opacity: 0;
-    transform: translateX(-16px);
+    transform: translateX(-10px);
     transition:
-      opacity 0.45s ease-out calc(var(--stagger-i, 0) * 0.09s),
-      transform 0.45s ease-out calc(var(--stagger-i, 0) * 0.09s),
+      opacity 0.34s ease-out calc(var(--stagger-i, 0) * 0.06s),
+      transform 0.34s ease-out calc(var(--stagger-i, 0) * 0.06s),
       border-left-color 0.2s ease-out 0s,
       background-color 0.2s ease-out 0s;
   }
@@ -428,6 +429,16 @@ const lineupExtras = [
   .lineup-extras--visible .lineup-extras__item {
     opacity: 1;
     transform: translateX(0);
+  }
+
+  @media (max-width: 47.999rem) {
+    .lineup-extras__item {
+      opacity: 1;
+      transform: none;
+      transition:
+        border-left-color 0.2s ease-out,
+        background-color 0.2s ease-out;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

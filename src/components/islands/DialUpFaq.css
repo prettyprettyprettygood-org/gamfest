@@ -36,3 +36,44 @@
   inline-size: 1em;
   block-size: 1em;
 }
+
+@keyframes dial-up-image-load {
+  0% {
+    clip-path: inset(0 0 100% 0);
+  }
+
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.dial-up-loader {
+  display: block;
+  width: min(100%, 220px);
+  height: 160px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.dial-up-loader__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: auto;
+  clip-path: inset(0 0 100% 0);
+}
+
+.dial-up-loader__image--started {
+  animation: dial-up-image-load var(--dial-up-load-duration, 19.3s)
+    steps(32, end) forwards;
+}
+
+.dial-up-loader__image--paused {
+  animation-play-state: paused;
+}
+
+.dial-up-loader__image--loaded {
+  clip-path: inset(0 0 0 0);
+  animation: none;
+}

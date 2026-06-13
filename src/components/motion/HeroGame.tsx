@@ -2033,8 +2033,8 @@ export default function HeroGame() {
           billboard.bbHeight,
           cell,
         );
-        const segmentIndex = volumeBar.segments.findIndex(
-          (segment) => isPointInRect(point, segment),
+        const segmentIndex = volumeBar.segments.findIndex((segment) =>
+          isPointInRect(point, segment),
         );
         if (segmentIndex !== -1) {
           event.preventDefault();
@@ -2128,8 +2128,8 @@ export default function HeroGame() {
             billboard.bbHeight,
             cell,
           );
-          const isVolumeSegment = volumeBar.segments.some(
-            (segment) => isPointInRect(point, segment),
+          const isVolumeSegment = volumeBar.segments.some((segment) =>
+            isPointInRect(point, segment),
           );
 
           const musicToggle = getHelpMusicToggleBounds(

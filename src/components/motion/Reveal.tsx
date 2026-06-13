@@ -1,5 +1,5 @@
 import { motion, type Variants } from 'framer-motion';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { usePrefersReducedMotion } from '../../lib/usePrefersReducedMotion';
 
 export interface RevealProps {
@@ -9,8 +9,10 @@ export interface RevealProps {
   className?: string;
 }
 
+const DESKTOP_QUERY = '(min-width: 48rem)';
+
 const variants: Variants = {
-  hidden: { opacity: 0, y: 28 },
+  hidden: { opacity: 0, y: 14 },
   visible: { opacity: 1, y: 0 },
 };
 
@@ -31,6 +33,22 @@ export default function Reveal({
   className,
 }: RevealProps) {
   const prefersReducedMotion = usePrefersReducedMotion();
+  const [isDesktop, setIsDesktop] = useState(
+    () =>
+      typeof window !== 'undefined' && window.matchMedia(DESKTOP_QUERY).matches,
+  );
+
+  useEffect(() => {
+    const mql = window.matchMedia(DESKTOP_QUERY);
+    const onChange = () => setIsDesktop(mql.matches);
+
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+
+  const shouldAnimate = isDesktop && !prefersReducedMotion;
+  const revealDelay = Math.min(delay * 0.6, 0.16);
 
   return (
     <motion.div
@@ -38,10 +56,10 @@ export default function Reveal({
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, amount: 0.3 }}
-      variants={prefersReducedMotion ? staticVariants : variants}
+      variants={shouldAnimate ? variants : staticVariants}
       transition={{
-        duration: prefersReducedMotion ? 0 : 0.5,
-        delay: prefersReducedMotion ? 0 : delay,
+        duration: shouldAnimate ? 0.38 : 0,
+        delay: shouldAnimate ? revealDelay : 0,
         ease: [0.16, 1, 0.3, 1],
       }}
     >

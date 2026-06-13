@@ -29,3 +29,10 @@
   user-select: none;
   white-space: nowrap;
 }
+
+.level-up-faq__star {
+  display: block;
+  width: min(100%, 220px);
+  height: 160px;
+  object-fit: contain;
+}

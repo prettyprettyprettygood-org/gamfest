@@ -1,5 +1,5 @@
 ---
-import { Image } from 'astro:assets';
+import { Image, getImage } from 'astro:assets';
 import Section from '../components/Section.astro';
 import Reveal from '../components/motion/Reveal';
 import DialUpFaq from '../components/islands/DialUpFaq';
@@ -15,6 +15,21 @@ import jamPhoto from '../assets/images/jam.png';
 import vestPhoto from '../assets/images/vest.png';
 import ffvPhoto from '../assets/images/final-fantasy-v.png';
 import silentHillFPhoto from '../assets/images/silent-hill-f.png';
+import laraCroftPhoto from '../assets/images/lara-croft.jpg';
+import starPhoto from '../assets/images/star.png';
+
+const faqImageWidth = 220;
+const faqImageHeight = 160;
+const laraCroftImage = await getImage({
+  src: laraCroftPhoto,
+  width: faqImageWidth,
+  format: 'webp',
+});
+const starImage = await getImage({
+  src: starPhoto,
+  width: faqImageWidth,
+  format: 'webp',
+});
 ---
 
 <Section
@@ -36,7 +51,8 @@ import silentHillFPhoto from '../assets/images/silent-hill-f.png';
             <Image
               src={isThisRealPhoto}
               alt="Proof that GAM[fest] #1 was a real event"
-              width={280}
+              width={faqImageWidth}
+              height={faqImageHeight}
               class="faq-item__single-img"
             />
           </div>
@@ -88,7 +104,8 @@ import silentHillFPhoto from '../assets/images/silent-hill-f.png';
             <Image
               src={spongebobPhoto}
               alt="Spongebob squarepants holding a TBD sign"
-              width={220}
+              width={faqImageWidth}
+              height={faqImageHeight}
               class="faq-item__single-img"
             />
           </div>
@@ -110,7 +127,8 @@ import silentHillFPhoto from '../assets/images/silent-hill-f.png';
             <Image
               src={thisBigCatPhoto}
               alt="This big (cat demonstrating size)"
-              width={220}
+              width={faqImageWidth}
+              height={faqImageHeight}
               class="faq-item__single-img"
             />
           </div>
@@ -132,8 +150,9 @@ import silentHillFPhoto from '../assets/images/silent-hill-f.png';
             <Image
               src={brosPhoto}
               alt="Bros at the after-party"
-              width={340}
-              class="faq-item__single-img"
+              width={faqImageWidth}
+              height={faqImageHeight}
+              class="faq-item__single-img faq-item__single-img--borderless"
             />
           </div>
         </div>
@@ -144,6 +163,8 @@ import silentHillFPhoto from '../assets/images/silent-hill-f.png';
         question={`Why doesn't your promo material sling any catchy millennial gamer slang like "LEVEL UP" and "GET AN EXTRA LIFE"?`}
         answer={`"Some idiot left Dom in charge of making the website." — Alas, I have arrived. As you can see, I have sprinkled some millennial gamer slang in.`}
         coinSrc={coinSrc}
+        imageSrc={starImage.src}
+        imageAlt="A pixelated star from the GAM[fest] promo materials"
       />
 
       <DialUpFaq
@@ -151,6 +172,8 @@ import silentHillFPhoto from '../assets/images/silent-hill-f.png';
         question="I have to go / my mom has to use the phone now."
         answer="OK, bye."
         audioSrc={dialUpSrc}
+        imageSrc={laraCroftImage.src}
+        imageAlt="Lara Croft waiting through a slow dial-up load"
       />
     </div>
   </Reveal>
@@ -247,12 +270,16 @@ import silentHillFPhoto from '../assets/images/silent-hill-f.png';
   }
 
   :global(.faq-item__single-img) {
+    display: block;
     border-radius: var(--radius-md);
     border: var(--border-width) solid var(--color-border);
-    max-width: 340px;
-    width: 100%;
-    height: auto;
+    width: min(100%, 220px);
+    height: 160px;
     object-fit: cover;
+  }
+
+  :global(.faq-item__single-img--borderless) {
+    border: 0;
   }
 
   /* Pronunciation rebus */
