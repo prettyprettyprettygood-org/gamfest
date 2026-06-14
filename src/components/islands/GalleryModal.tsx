@@ -16,7 +16,11 @@ interface Props {
 
 export default function GalleryModal({ items }: Props) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [initialVisibleCount, setInitialVisibleCount] = useState(4);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const hasMoreItems = items.length > initialVisibleCount;
+  const visibleItems = isExpanded ? items : items.slice(0, initialVisibleCount);
 
   function open(i: number) {
     setActiveIdx(i);
@@ -46,10 +50,21 @@ export default function GalleryModal({ items }: Props) {
     return () => window.removeEventListener('keydown', handleKey);
   }, [activeIdx]);
 
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 64rem)');
+    const syncVisibleCount = () => {
+      setInitialVisibleCount(media.matches ? 6 : 4);
+    };
+
+    syncVisibleCount();
+    media.addEventListener('change', syncVisibleCount);
+    return () => media.removeEventListener('change', syncVisibleCount);
+  }, []);
+
   return (
     <>
       <ul className="gallery-grid">
-        {items.map((item, i) => (
+        {visibleItems.map((item, i) => (
           <li key={i} className="gallery-grid__item">
             <button
               className="gallery-thumb"
@@ -80,6 +95,19 @@ export default function GalleryModal({ items }: Props) {
           </li>
         ))}
       </ul>
+
+      {hasMoreItems && (
+        <div className="gallery-more">
+          <button
+            type="button"
+            className="gallery-more__button"
+            onClick={() => setIsExpanded((value) => !value)}
+            aria-expanded={isExpanded}
+          >
+            {isExpanded ? 'See less' : `See ${items.length - initialVisibleCount} more`}
+          </button>
+        </div>
+      )}
 
       <AnimatePresence>
         {activeIdx !== null && (

@@ -6,7 +6,7 @@ import Icon from '../components/Icon.astro';
 import Reveal from '../components/motion/Reveal';
 import VideoPlayer from '../components/islands/VideoPlayer';
 
-import djBoardVideo from '../assets/video/dj-board.mp4';
+import gamfestLivePlayVideo from '../assets/video/gamfest-live-play.mp4';
 import quickSavePhoto from '../assets/images/quicksave.png';
 import quickSaveBandPhoto from '../assets/images/quicksave-band.png';
 import marsMagmaPhoto from '../assets/images/mars-magma.png';
@@ -198,7 +198,7 @@ const lineupExtras = [
       </ul>
     </div>
     <Reveal client:visible delay={0.28} className="lineup-extras-video-col">
-      <VideoPlayer client:visible src={djBoardVideo} />
+      <VideoPlayer client:visible src={gamfestLivePlayVideo} />
     </Reveal>
   </div>
 </Section>

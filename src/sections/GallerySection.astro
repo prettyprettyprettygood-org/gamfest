@@ -10,8 +10,42 @@ import yoshiBillboardPhoto from '../assets/images/yoshi-billboard.webp';
 import gamFestSignPhoto from '../assets/images/gam-fest-sign.jpg';
 import marsLivePhoto from '../assets/images/mars-live.jpg';
 import marsRunPhoto from '../assets/images/mars-run.jpg';
+import gamfestBillboardLargePhoto from '../assets/images/gamfest-billboard-large.png';
+import gamfestBillboardLivePhoto from '../assets/images/gamfest-billboard-live.png';
+import gamfestBillboardSkyPhoto from '../assets/images/gamfest-billboard-sky.png';
+import gamfestBillboardSkylinePhoto from '../assets/images/gamfest-billboard-skyline.png';
+import gamfestBillboardStreetPhoto from '../assets/images/gamfest-billboard-street.png';
+import gamfestPerformancePhoto from '../assets/images/gamfest-performance.jpg';
 
 const galleryItems = [
+  {
+    thumbSrc: (
+      await getImage({ src: gamFestSignPhoto, width: 600, format: 'webp' })
+    ).src,
+    fullSrc: (await getImage({ src: gamFestSignPhoto, width: 1400 })).src,
+    alt: 'A GAM[fest] festival sign on display at the event.',
+    caption: 'The GAM[fest] sign welcoming attendees.',
+    thumbPosition: 'center',
+  },
+  {
+    thumbSrc: (
+      await getImage({
+        src: gamfestBillboardSkylinePhoto,
+        width: 600,
+        format: 'webp',
+      })
+    ).src,
+    fullSrc: (
+      await getImage({
+        src: gamfestBillboardSkylinePhoto,
+        width: 1400,
+        format: 'webp',
+      })
+    ).src,
+    alt: 'The GAM[fest] billboard showing a Super Mario World underwater level beside the Baltimore skyline and the street festival below.',
+    caption: 'Super Mario World skyline-sized.',
+    thumbPosition: 'left center',
+  },
   {
     thumbSrc: (
       await getImage({ src: billboardPhoto, width: 600, format: 'webp' })
@@ -35,19 +69,10 @@ const galleryItems = [
       await getImage({ src: yoshiBillboardPhoto, width: 600, format: 'webp' })
     ).src,
     fullSrc: (await getImage({ src: yoshiBillboardPhoto, width: 1200 })).src,
-    alt: "A tall view of the LED billboard mounted above a Station North brick warehouse, displaying the overworld map from Super Mario World's Yoshi's Island, with festival tents and a small crowd gathered on the street below.",
+    alt: 'A tall view of the LED billboard mounted above a Station North brick warehouse, displaying Super Mario World gameplay, with festival tents and a small crowd gathered on the street below.',
     caption:
-      "Yoshi's Island, five stories up — and a street-level view of the whole setup.",
+      'Super Mario World, five stories up - and a street-level view of the whole setup.',
     thumbPosition: 'top center',
-  },
-  {
-    thumbSrc: (
-      await getImage({ src: gamFestSignPhoto, width: 600, format: 'webp' })
-    ).src,
-    fullSrc: (await getImage({ src: gamFestSignPhoto, width: 1400 })).src,
-    alt: 'A GAM[fest] festival sign on display at the event.',
-    caption: 'The GAM[fest] sign welcoming attendees.',
-    thumbPosition: 'center',
   },
   {
     thumbSrc: (
@@ -67,6 +92,101 @@ const galleryItems = [
     caption: 'Mars bringing the energy.',
     thumbPosition: 'center',
   },
+  {
+    thumbSrc: (
+      await getImage({
+        src: gamfestBillboardLivePhoto,
+        width: 600,
+        format: 'webp',
+      })
+    ).src,
+    fullSrc: (
+      await getImage({
+        src: gamfestBillboardLivePhoto,
+        width: 1400,
+        format: 'webp',
+      })
+    ).src,
+    alt: 'A rooftop view of the GAM[fest] billboard showing a live Zelda speedrun feed and timer above Station North.',
+    caption: 'The Zelda run, live over Station North.',
+    thumbPosition: 'center',
+  },
+  {
+    thumbSrc: (
+      await getImage({
+        src: gamfestBillboardSkyPhoto,
+        width: 600,
+        format: 'webp',
+      })
+    ).src,
+    fullSrc: (
+      await getImage({
+        src: gamfestBillboardSkyPhoto,
+        width: 1400,
+        format: 'webp',
+      })
+    ).src,
+    alt: 'The GAM[fest] billboard playing Super Mario World against a bright blue Baltimore sky.',
+    caption: 'Super Mario World and a whole lot of blue sky.',
+    thumbPosition: 'right center',
+  },
+  {
+    thumbSrc: (
+      await getImage({
+        src: gamfestBillboardStreetPhoto,
+        width: 600,
+        format: 'webp',
+      })
+    ).src,
+    fullSrc: (
+      await getImage({
+        src: gamfestBillboardStreetPhoto,
+        width: 1400,
+        format: 'webp',
+      })
+    ).src,
+    alt: 'The GAM[fest] billboard playing Super Mario Bros. above Charles Street, with festival tents and attendees below.',
+    caption: 'The festival stretched from street level to skyline.',
+    thumbPosition: 'left center',
+  },
+  {
+    thumbSrc: (
+      await getImage({
+        src: gamfestBillboardLargePhoto,
+        width: 600,
+        format: 'webp',
+      })
+    ).src,
+    fullSrc: (
+      await getImage({
+        src: gamfestBillboardLargePhoto,
+        width: 1400,
+        format: 'webp',
+      })
+    ).src,
+    alt: 'A close low-angle view of the GAM[fest] billboard showing a Legend of Zelda dungeon room.',
+    caption: 'Dungeon crawling, five stories tall.',
+    thumbPosition: 'center',
+  },
+  {
+    thumbSrc: (
+      await getImage({
+        src: gamfestPerformancePhoto,
+        width: 600,
+        format: 'webp',
+      })
+    ).src,
+    fullSrc: (
+      await getImage({
+        src: gamfestPerformancePhoto,
+        width: 1400,
+        format: 'webp',
+      })
+    ).src,
+    alt: 'A street-level band performance at GAM[fest], with saxophonists and other musicians playing while festival tents line the road behind them.',
+    caption: 'Street-level music between big-screen moments.',
+    thumbPosition: 'center',
+  },
 ];
 ---
 
@@ -78,6 +198,6 @@ const galleryItems = [
     </p>
   </Reveal>
   <Reveal client:visible delay={0.12}>
-    <GalleryModal client:visible items={galleryItems} />
+    <GalleryModal client:load items={galleryItems} />
   </Reveal>
 </Section>
