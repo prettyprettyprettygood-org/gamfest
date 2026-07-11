@@ -4,7 +4,8 @@ Fast-orientation notes for an AI coding agent (or new developer) picking up GAM[
 
 ## Site config & content
 
-- [src/data/config.ts](../src/data/config.ts) — single source of truth for external links (Discord, Facebook, contact email, Formspree form URL, Google Maps URLs). Update links here, not inline in components.
+- [src/data/config.ts](../src/data/config.ts) — single source of truth for external links (Discord, Facebook, contact email, Formspree form URL, Google Maps URLs) and the Turnstile site key. Update links here, not inline in components.
+- [src/sections/ContactSection.astro](../src/sections/ContactSection.astro) — the contact form posts to Formspree via `fetch` (not a native form POST) so a successful send swaps in an inline "thanks" message instead of redirecting to Formspree's hosted confirmation page. It also renders a Cloudflare Turnstile widget (site key from `config.ts`; the paired secret key lives in Formspree's dashboard, not in this repo) — Turnstile will fail with error `110200` on any domain not allowlisted for that site key, which is expected on `localhost`/preview domains and not a bug.
 - [src/styles/tokens.css](../src/styles/tokens.css) — design tokens (colors, spacing, type scale, radii). Components must consume these CSS custom properties; never hardcode hex codes or pixel values in component styles.
 - Site copy (event details, lineup bios, FAQ text) lives directly in [src/sections/](../src/sections/) and [src/data/config.ts](../src/data/config.ts) — there is no separate source-copy doc.
 

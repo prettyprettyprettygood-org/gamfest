@@ -9,6 +9,7 @@ import {
   facebookUrl,
   contactEmail,
   formspreeUrl,
+  turnstileSiteKey,
 } from '../data/config';
 ---
 
@@ -21,41 +22,71 @@ import {
   </Reveal>
   <div class="contact-layout">
     <Reveal client:visible delay={0.12} className="contact-layout__form">
-      <form class="contact-form" action={formspreeUrl} method="POST">
-        <header class="contact-form__header">
-          <h3 class="contact-form__title">Get in touch</h3>
-          <p class="contact-form__subtitle">
-            Got an idea, a question, or want to pitch an activity for next time?
+      <div class="contact-form-wrapper">
+        <form
+          class="contact-form"
+          id="contact-form"
+          action={formspreeUrl}
+          method="POST"
+        >
+          <header class="contact-form__header">
+            <h3 class="contact-form__title">Get in touch</h3>
+            <p class="contact-form__subtitle">
+              Got an idea, a question, or want to pitch an activity for next
+              time?
+            </p>
+          </header>
+          <input type="hidden" name="_subject" value="GAM[fest] contact form" />
+          <div class="contact-form__row">
+            <label for="contact-name">Name</label>
+            <input
+              id="contact-name"
+              name="name"
+              type="text"
+              autocomplete="name"
+              required
+            />
+          </div>
+          <div class="contact-form__row">
+            <label for="contact-email">Email</label>
+            <input
+              id="contact-email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+            />
+          </div>
+          <div class="contact-form__row">
+            <label for="contact-message">Message</label>
+            <textarea id="contact-message" name="message" rows="4" required
+            ></textarea>
+          </div>
+          <div
+            class="cf-turnstile"
+            data-sitekey={turnstileSiteKey}
+            data-size="flexible"
+          >
+          </div>
+          <p
+            class="contact-form__error"
+            id="contact-form-error"
+            role="alert"
+            hidden
+          >
           </p>
-        </header>
-        <input type="hidden" name="_subject" value="GAM[fest] contact form" />
-        <div class="contact-form__row">
-          <label for="contact-name">Name</label>
-          <input
-            id="contact-name"
-            name="name"
-            type="text"
-            autocomplete="name"
-            required
-          />
+          <Button type="submit" variant="primary">Send it</Button>
+        </form>
+        <div
+          class="contact-form__success"
+          id="contact-form-success"
+          role="status"
+          aria-live="polite"
+          hidden
+        >
+          <p class="contact-form__success-title">Thanks — we'll be in touch!</p>
         </div>
-        <div class="contact-form__row">
-          <label for="contact-email">Email</label>
-          <input
-            id="contact-email"
-            name="email"
-            type="email"
-            autocomplete="email"
-            required
-          />
-        </div>
-        <div class="contact-form__row">
-          <label for="contact-message">Message</label>
-          <textarea id="contact-message" name="message" rows="4" required
-          ></textarea>
-        </div>
-        <Button type="submit" variant="primary">Send it</Button>
-      </form>
+      </div>
     </Reveal>
     <Reveal client:visible delay={0.18} className="contact-layout__follow">
       <div class="follow-card">
@@ -97,6 +128,12 @@ import {
     </Reveal>
   </div>
 </Section>
+
+<script
+  src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+  async
+  defer
+  is:inline></script>
 
 <style>
   .contact-layout {
@@ -219,6 +256,10 @@ import {
     block-size: 1rem;
   }
 
+  .contact-form[hidden] {
+    display: none;
+  }
+
   .contact-form {
     display: flex;
     flex-direction: column;
@@ -279,6 +320,36 @@ import {
     border-color: var(--color-focus-ring);
   }
 
+  .contact-form__error {
+    margin: 0;
+    color: var(--color-amber);
+    font-size: var(--text-sm);
+  }
+
+  .contact-form__success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-3);
+    padding: var(--space-6) var(--space-5);
+    background-color: var(--color-bg-raised);
+    border: var(--border-width) solid var(--color-green);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--glow-green-soft);
+    text-align: center;
+  }
+
+  .contact-form__success-title {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-weight: var(--weight-bold);
+    font-size: var(--text-lg);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--color-green-text);
+  }
+
   /* Desktop: form takes the wider left column, follow card stacks at right */
   @media (min-width: 48rem) {
     .contact-layout {
@@ -289,3 +360,72 @@ import {
     }
   }
 </style>
+
+<script>
+  // Submit the contact form via fetch instead of a full-page POST, so a
+  // successful send swaps in an inline "thanks" message instead of
+  // redirecting to Formspree's hosted confirmation page.
+  interface FormspreeErrorBody {
+    errors?: { message?: string }[];
+  }
+
+  declare global {
+    interface Window {
+      // Loaded async from the Cloudflare Turnstile <script> above — may not
+      // exist yet if the widget hasn't finished loading.
+      turnstile?: { reset: (container?: string | Element) => void };
+    }
+  }
+
+  const form = document.querySelector<HTMLFormElement>('#contact-form');
+  const success = document.querySelector<HTMLElement>('#contact-form-success');
+  const error = document.querySelector<HTMLElement>('#contact-form-error');
+  const turnstileWidget = form?.querySelector<HTMLElement>('.cf-turnstile');
+
+  const defaultErrorMessage =
+    'Something went wrong sending that — please try again, or email us directly.';
+
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const submitButton = form.querySelector<HTMLButtonElement>(
+      'button[type="submit"]',
+    );
+    if (error) {
+      error.hidden = true;
+      error.textContent = '';
+    }
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        headers: { Accept: 'application/json' },
+      });
+
+      if (!response.ok) {
+        const body: FormspreeErrorBody = await response
+          .json()
+          .catch(() => ({}));
+        throw new Error(body.errors?.[0]?.message || defaultErrorMessage);
+      }
+
+      form.hidden = true;
+      success?.removeAttribute('hidden');
+    } catch (err) {
+      if (error) {
+        error.hidden = false;
+        error.textContent =
+          err instanceof Error && err.message
+            ? err.message
+            : defaultErrorMessage;
+      }
+      // The Turnstile token is single-use — reset the widget so a retry
+      // can get a fresh one instead of failing again silently.
+      if (turnstileWidget) window.turnstile?.reset(turnstileWidget);
+    } finally {
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+</script>
