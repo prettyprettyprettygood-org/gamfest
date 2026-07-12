@@ -76,6 +76,15 @@ import {
           >
           </p>
           <Button type="submit" variant="primary">Send it</Button>
+          <p class="contact-form__privacy-note">
+            This form is handled by <a
+              href="https://formspree.io/legal/privacy-policy/"
+              target="_blank"
+              rel="noreferrer">Formspree</a
+            > and checked for spam by Cloudflare Turnstile — we only see what
+            you type above, used to reply to you. No tracking, no mailing
+            list, no other data collected.
+          </p>
         </form>
         <div
           class="contact-form__success"
@@ -326,6 +335,13 @@ import {
     font-size: var(--text-sm);
   }
 
+  .contact-form__privacy-note {
+    margin: 0;
+    color: var(--color-fg-muted);
+    font-size: var(--text-xs);
+    line-height: var(--leading-snug);
+  }
+
   .contact-form__success {
     display: flex;
     flex-direction: column;
@@ -427,5 +443,22 @@ import {
     } finally {
       if (submitButton) submitButton.disabled = false;
     }
+  });
+
+  // A bfcache restore (e.g. backgrounding/returning to the tab on mobile, or
+  // the browser back button) brings the DOM back exactly as it was left,
+  // including the "thanks" state — reset it so a restored page shows the
+  // form again rather than a stale success message.
+  window.addEventListener('pageshow', (event) => {
+    if (!event.persisted || !form) return;
+
+    form.reset();
+    form.hidden = false;
+    success?.setAttribute('hidden', '');
+    if (error) {
+      error.hidden = true;
+      error.textContent = '';
+    }
+    if (turnstileWidget) window.turnstile?.reset(turnstileWidget);
   });
 </script>
